@@ -8,7 +8,7 @@ linter.all = true
 [[require]]
 name = "verso"
 git = "https://github.com/leanprover/verso"
-rev = "v4.33.0"
+rev = "v4.34.0"
 
 [[require]]
 name = "LeanProfiler"

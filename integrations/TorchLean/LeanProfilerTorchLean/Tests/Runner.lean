@@ -25,11 +25,20 @@ def expect (label : String) (condition : Bool) : IO Unit :=
 /-- Check that the integration delegates recognized and unknown model commands correctly. -/
 public def run : IO Unit := do
   let splitArgs :=
-    ["quickstart_mlp", "--device", "cuda", "--execution=eager", "--scalar", "float32"]
+    ["quickstart_mlp", "--device", "cuda", "--execution=eager", "--arithmetic", "native"]
   let metadata := LeanProfiler.TorchLean.CommandMetadata.fromArguments splitArgs
   expect "split device flag" (metadata.device == some "cuda")
   expect "inline execution flag" (metadata.backend == some "eager")
-  expect "split scalar flag" (metadata.dtype == some "float32")
+  expect "native arithmetic uses binary32" (metadata.dtype == some "float32")
+  expect "software IEEE arithmetic retains its label"
+    ((LeanProfiler.TorchLean.CommandMetadata.fromArguments
+      ["--arithmetic=ieee"]).dtype == some "ieee-binary32")
+  expect "complex arithmetic retains its label"
+    ((LeanProfiler.TorchLean.CommandMetadata.fromArguments
+      ["--arithmetic", "complex"]).dtype == some "complex64")
+  expect "unknown arithmetic is not mislabeled"
+    ((LeanProfiler.TorchLean.CommandMetadata.fromArguments
+      ["--arithmetic=unknown"]).dtype == none)
   expect "CUDA selection" (LeanProfiler.TorchLean.CommandMetadata.usesCuda splitArgs)
   expect "CPU does not select CUDA"
     (!LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device=cpu"])

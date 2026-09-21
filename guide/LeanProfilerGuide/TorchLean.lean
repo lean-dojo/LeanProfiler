@@ -117,7 +117,7 @@ torchlean.mlp-training
 `model.train` carries training phase, eager execution, Float32 scalar mode, CPU device, model, and
 shape metadata. Measured predictions carry step numbers in the trace while sharing one grouped row.
 
-The checked-in capture reached a loss of `0.259931`, down from `1.349908`. Ten post-warmup
+The Lean 4.34 capture reached a loss of `0.178789`, down from `1.159370`. Ten post-warmup
 prediction spans form the distribution below:
 
 ![Ten measured prediction latencies from the TorchLean quickstart MLP](../../Assets/torchlean-prediction-latency.svg)
@@ -141,7 +141,7 @@ def main : IO Unit :=
   } {
     seed := 7
     steps := 100
-    batchSize := 5
+    samplesPerStep := 5
     warmupRuns := 2
     predictionRuns := 50
   }
@@ -162,9 +162,9 @@ predictions. Its central block is:
 ```
 profile config "torchlean.mlp-training" do
   let trained ← span "model.train"
-    (trainer.train buildDataset {
+    (trainer.train data {
       steps := workload.steps
-      batchSize := workload.batchSize
+      samplesPerStep := workload.samplesPerStep
       logEvery := 0
     })
     (metadata := {
@@ -216,7 +216,7 @@ LEAN_PROFILE=1 \
 LEAN_PROFILE_OUT=build/mlp-cuda-trace.json \
 LEAN_PROFILE_SUMMARY_OUT=build/mlp-cuda-summary.json \
 lake -R -K cuda=true exe leanprofiler_torchlean \
-  quickstart_mlp --device cuda --execution eager --scalar float32 --steps 3
+  quickstart_mlp --device cuda --execution eager --arithmetic native --steps 3
 ```
 
 The integration forwards `cuda=true` to TorchLean and adds CUDA link flags to the final executable.

@@ -35,7 +35,11 @@ public def fromArguments (args : List String) : Metadata :=
   {
     activity := some "model command"
     backend := optionValue? "--execution" args
-    dtype := optionValue? "--scalar" args
+    dtype := (optionValue? "--arithmetic" args).bind fun
+      | "native" => some "float32"
+      | "ieee" => some "ieee-binary32"
+      | "complex" => some "complex64"
+      | _ => none
     device := optionValue? "--device" args
   }
 

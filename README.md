@@ -2,6 +2,8 @@
 
 Application-level runtime profiling for compiled Lean programs.
 
+The core package, TorchLean integration, and guide use Lean 4.34.0.
+
 ## Why it exists
 
 LeanProfiler grew out of an awkward gap in Lean's performance tooling. Lean already has good tools

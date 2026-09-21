@@ -20,7 +20,7 @@ namespace LeanProfiler.TorchLean.MlpTraining
 
 open LeanProfiler
 open _root_.TorchLean
-open NN.Examples.Quickstart.SimpleMLPTrain
+open NN.Examples.Quickstart.SimpleMlpTrain
 
 /-- Training and inference sizes for the MLP workload. -/
 public structure WorkloadConfig where
@@ -29,7 +29,7 @@ public structure WorkloadConfig where
   /-- Number of optimizer updates in the measured training run. -/
   steps : Nat := 20
   /-- Number of dataset items accumulated before each optimizer update. -/
-  batchSize : Nat := 5
+  samplesPerStep : Nat := 5
   /-- Predictions run before the timed prediction spans. -/
   warmupRuns : Nat := 1
   /-- Number of post-training predictions used to form an inference latency distribution. -/
@@ -42,27 +42,28 @@ def modelMetadata : Metadata :=
     dtype := some "float32"
     device := some "cpu"
     moduleName := some "quickstart.simple-mlp"
-    inputShapes := #[Shape.pretty (.dim inDim .scalar)]
-    outputShapes := #[Shape.pretty (.dim outDim .scalar)]
+    inputShapes := #[Shape.pretty [2]]
+    outputShapes := #[Shape.pretty [1]]
   }
 
 /-- Profile one training run and repeated predictions with TorchLean's quickstart MLP. -/
 public def run (profiler : ProfilerConfig) (workload : WorkloadConfig := {}) : IO Unit := do
   let trainer := Trainer.new model {
-    task := .regression
-    optimizer := optim.adam { lr := 0.03 }
-    scalar := .float32
+    objective := .meanSquaredError
+    optimizer := optim.adam { learningRate := 0.03 }
+    arithmetic := .native
     execution := .eager
     seed := workload.seed
   }
   IO.println "== TorchLean MLP profile =="
-  IO.println (nn.summary trainer.model)
+  let summary ← IO.ofExcept (nn.summary trainer.model)
+  IO.println summary
   let (trainingSummary, lastPrediction) ←
     profile profiler "torchlean.mlp-training" do
       let trained ← span "model.train"
-        (trainer.train buildDataset {
+        (trainer.train data {
           steps := workload.steps
-          batchSize := workload.batchSize
+          samplesPerStep := workload.samplesPerStep
           logEvery := 0
         })
         (metadata := {
@@ -70,7 +71,7 @@ public def run (profiler : ProfilerConfig) (workload : WorkloadConfig := {}) : I
           phase := some "training"
           activity := some "training run"
         })
-      let heldout : Tensor Float [inDim] := tensor! [0.25, -0.75]
+      let heldout : Tensor Float [2] := [0.25, -0.75]
       -- Warmups are excluded from the inference latency row.
       for _ in List.range workload.warmupRuns do
         let _ ← trained.predict heldout
@@ -81,7 +82,7 @@ public def run (profiler : ProfilerConfig) (workload : WorkloadConfig := {}) : I
             phase := some "inference"
             activity := some "held-out prediction"
           })
-      pure (trained.summary, predictions.getLast?.map Tensor.pretty)
+      pure (trained.summary, predictions.getLast?.map reprStr)
   IO.println trainingSummary
   if let some prediction := lastPrediction then
     IO.println s!"last prediction = {prediction}"

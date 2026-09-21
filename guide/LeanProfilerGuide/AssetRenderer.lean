@@ -434,10 +434,11 @@ private def predictionLatencySvg (spans : Array TraceSpan) (summary : SummaryArt
   let maxValue := predictions.foldl (init := first.durationNs) fun current span =>
     max current span.durationNs
   let range := max 1 (maxValue - minValue)
-  let p95 := summary.rows.foldl (init := 0) fun current row =>
-    if row.key.name == "model.predict" then row.p95Ns else current
-  let median := summary.rows.foldl (init := 0) fun current row =>
-    if row.key.name == "model.predict" then row.medianNs else current
+  let row := (summary.rows.find? fun row => row.key.name == "model.predict").get!
+  let p95 := row.p95Ns
+  let median := row.medianNs
+  let metadata := String.intercalate " · "
+    ([row.key.device, row.key.backend, row.key.dtype].filterMap id)
   let width := 1120
   let left := 120
   let plotWidth := 850
@@ -451,10 +452,10 @@ private def predictionLatencySvg (spans : Array TraceSpan) (summary : SummaryArt
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
     s!"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"354\" viewBox=\"0 0 {width} 354\" role=\"img\" aria-labelledby=\"latency-title latency-desc\">",
     "  <title id=\"latency-title\">TorchLean MLP prediction latency</title>",
-    s!"  <desc id=\"latency-desc\">Ten measured CPU predictions range from {xmlEscape (formatDuration minValue)} to {xmlEscape (formatDuration maxValue)}, with a p95 of {xmlEscape (formatDuration p95)}.</desc>",
+    s!"  <desc id=\"latency-desc\">{predictions.size} measured predictions range from {xmlEscape (formatDuration minValue)} to {xmlEscape (formatDuration maxValue)}, with a p95 of {xmlEscape (formatDuration p95)}.</desc>",
     "  <rect width=\"100%\" height=\"100%\" fill=\"#fbfcfe\" rx=\"8\"/>",
     "  <text x=\"24\" y=\"32\" font-family=\"system-ui, sans-serif\" font-size=\"20\" font-weight=\"700\" fill=\"#152536\">TorchLean MLP prediction latency</text>",
-    s!"  <text x=\"24\" y=\"54\" font-family=\"system-ui, sans-serif\" font-size=\"13\" fill=\"#58677a\">10 measured predictions after warmup · CPU · eager · Float · median {xmlEscape (formatDuration median)} · p95 {xmlEscape (formatDuration p95)}</text>",
+    s!"  <text x=\"24\" y=\"54\" font-family=\"system-ui, sans-serif\" font-size=\"13\" fill=\"#58677a\">{predictions.size} measured predictions after warmup · {xmlEscape metadata} · median {xmlEscape (formatDuration median)} · p95 {xmlEscape (formatDuration p95)}</text>",
     s!"  <line x1=\"{left}\" y1=\"{plotTop}\" x2=\"{left + plotWidth}\" y2=\"{plotTop}\" stroke=\"#d9e1ea\" stroke-width=\"1\"/>",
     s!"  <line x1=\"{left}\" y1=\"{plotTop + plotHeight}\" x2=\"{left + plotWidth}\" y2=\"{plotTop + plotHeight}\" stroke=\"#d9e1ea\" stroke-width=\"1\"/>",
     s!"  <line x1=\"{left}\" y1=\"{yOf p95}\" x2=\"{left + plotWidth}\" y2=\"{yOf p95}\" stroke=\"#ba6b18\" stroke-width=\"2\" stroke-dasharray=\"6 5\"/>",

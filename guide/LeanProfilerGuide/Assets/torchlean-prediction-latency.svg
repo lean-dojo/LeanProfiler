@@ -1,46 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="354" viewBox="0 0 1120 354" role="img" aria-labelledby="latency-title latency-desc">
   <title id="latency-title">TorchLean MLP prediction latency</title>
-  <desc id="latency-desc">Ten measured CPU predictions range from 56.05 us to 64.01 us, with a p95 of 64.01 us.</desc>
+  <desc id="latency-desc">10 measured predictions range from 136.55 us to 141.99 us, with a p95 of 141.99 us.</desc>
   <rect width="100%" height="100%" fill="#fbfcfe" rx="8"/>
   <text x="24" y="32" font-family="system-ui, sans-serif" font-size="20" font-weight="700" fill="#152536">TorchLean MLP prediction latency</text>
-  <text x="24" y="54" font-family="system-ui, sans-serif" font-size="13" fill="#58677a">10 measured predictions after warmup · CPU · eager · Float · median 56.34 us · p95 64.01 us</text>
+  <text x="24" y="54" font-family="system-ui, sans-serif" font-size="13" fill="#58677a">10 measured predictions after warmup · cpu · eager · float32 · median 137.07 us · p95 141.99 us</text>
   <line x1="120" y1="96" x2="970" y2="96" stroke="#d9e1ea" stroke-width="1"/>
   <line x1="120" y1="276" x2="970" y2="276" stroke="#d9e1ea" stroke-width="1"/>
   <line x1="120" y1="96" x2="970" y2="96" stroke="#ba6b18" stroke-width="2" stroke-dasharray="6 5"/>
-  <text x="984" y="100" font-family="ui-monospace, monospace" font-size="11" fill="#9a560f">p95 64.01 us</text>
-  <text x="106" y="100" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">64.01 us</text>
-  <text x="106" y="280" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">56.05 us</text>
-  <polyline points="120,261 214,275 308,269 403,270 497,266 592,276 686,271 781,273 875,96 970,266" fill="none" stroke="#187d75" stroke-width="3"/>
+  <text x="984" y="100" font-family="ui-monospace, monospace" font-size="11" fill="#9a560f">p95 141.99 us</text>
+  <text x="106" y="100" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">141.99 us</text>
+  <text x="106" y="280" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">136.55 us</text>
+  <polyline points="120,227 214,264 308,246 403,96 497,234 592,276 686,260 781,259 875,267 970,154" fill="none" stroke="#187d75" stroke-width="3"/>
   <line x1="120" y1="96" x2="120" y2="276" stroke="#edf1f5" stroke-width="1"/>
   <text x="120" y="300" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">0</text>
-  <g aria-label="prediction 0; 56.75 us"><circle cx="120" cy="261" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 0; 56.75 us</title></circle></g>
+  <g aria-label="prediction 0; 138.03 us"><circle cx="120" cy="227" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 0; 138.03 us</title></circle></g>
   <line x1="214" y1="96" x2="214" y2="276" stroke="#edf1f5" stroke-width="1"/>
   <text x="214" y="300" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">1</text>
-  <g aria-label="prediction 1; 56.10 us"><circle cx="214" cy="275" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 1; 56.10 us</title></circle></g>
+  <g aria-label="prediction 1; 136.94 us"><circle cx="214" cy="264" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 1; 136.94 us</title></circle></g>
   <line x1="308" y1="96" x2="308" y2="276" stroke="#edf1f5" stroke-width="1"/>
   <text x="308" y="300" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">2</text>
-  <g aria-label="prediction 2; 56.38 us"><circle cx="308" cy="269" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 2; 56.38 us</title></circle></g>
+  <g aria-label="prediction 2; 137.47 us"><circle cx="308" cy="246" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 2; 137.47 us</title></circle></g>
   <line x1="403" y1="96" x2="403" y2="276" stroke="#edf1f5" stroke-width="1"/>
   <text x="403" y="300" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">3</text>
-  <g aria-label="prediction 3; 56.34 us"><circle cx="403" cy="270" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 3; 56.34 us</title></circle></g>
+  <g aria-label="prediction 3; 141.99 us"><circle cx="403" cy="96" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 3; 141.99 us</title></circle></g>
   <line x1="497" y1="96" x2="497" y2="276" stroke="#edf1f5" stroke-width="1"/>
   <text x="497" y="300" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">4</text>
-  <g aria-label="prediction 4; 56.51 us"><circle cx="497" cy="266" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 4; 56.51 us</title></circle></g>
+  <g aria-label="prediction 4; 137.84 us"><circle cx="497" cy="234" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 4; 137.84 us</title></circle></g>
   <line x1="592" y1="96" x2="592" y2="276" stroke="#edf1f5" stroke-width="1"/>
   <text x="592" y="300" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">5</text>
-  <g aria-label="prediction 5; 56.05 us"><circle cx="592" cy="276" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 5; 56.05 us</title></circle></g>
+  <g aria-label="prediction 5; 136.55 us"><circle cx="592" cy="276" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 5; 136.55 us</title></circle></g>
   <line x1="686" y1="96" x2="686" y2="276" stroke="#edf1f5" stroke-width="1"/>
   <text x="686" y="300" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">6</text>
-  <g aria-label="prediction 6; 56.30 us"><circle cx="686" cy="271" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 6; 56.30 us</title></circle></g>
+  <g aria-label="prediction 6; 137.06 us"><circle cx="686" cy="260" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 6; 137.06 us</title></circle></g>
   <line x1="781" y1="96" x2="781" y2="276" stroke="#edf1f5" stroke-width="1"/>
   <text x="781" y="300" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">7</text>
-  <g aria-label="prediction 7; 56.22 us"><circle cx="781" cy="273" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 7; 56.22 us</title></circle></g>
+  <g aria-label="prediction 7; 137.07 us"><circle cx="781" cy="259" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 7; 137.07 us</title></circle></g>
   <line x1="875" y1="96" x2="875" y2="276" stroke="#edf1f5" stroke-width="1"/>
   <text x="875" y="300" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">8</text>
-  <g aria-label="prediction 8; 64.01 us"><circle cx="875" cy="96" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 8; 64.01 us</title></circle></g>
+  <g aria-label="prediction 8; 136.85 us"><circle cx="875" cy="267" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 8; 136.85 us</title></circle></g>
   <line x1="970" y1="96" x2="970" y2="276" stroke="#edf1f5" stroke-width="1"/>
   <text x="970" y="300" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#58677a">9</text>
-  <g aria-label="prediction 9; 56.52 us"><circle cx="970" cy="266" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 9; 56.52 us</title></circle></g>
+  <g aria-label="prediction 9; 140.26 us"><circle cx="970" cy="154" r="6" fill="#187d75" stroke="#ffffff" stroke-width="2"><title>prediction 9; 140.26 us</title></circle></g>
   <text x="545" y="326" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#58677a">prediction index</text>
 </svg>

@@ -71,8 +71,13 @@ LEAN_PROFILE=1 \
 LEAN_PROFILE_OUT=build/cuda-mlp-trace.json \
 LEAN_PROFILE_SUMMARY_OUT=build/cuda-mlp-summary.json \
 lake -R -K cuda=true exe leanprofiler_torchlean \
-  quickstart_mlp --device cuda --execution eager --scalar float32 --steps 3
+  quickstart_mlp --device cuda --execution eager --arithmetic native --steps 3
 ```
+
+The integration forwards `cuda_home` and `cuda_arch` to TorchLean. For an A100-only build,
+add `-K cuda_arch=sm_80` to the build and run commands. This is also needed with CUDA 11,
+whose compiler does not accept the default `all-major` target. The toolkit selected by
+`cuda_home` supplies both the headers and linked libraries.
 
 An explicit `--device cuda` selects `LeanProfiler.TorchLean.Cuda.spanHooks`. Before the model runs,
 the hook rejects TorchLean's CPU parity stubs and samples the device-buffer allocator. It calls

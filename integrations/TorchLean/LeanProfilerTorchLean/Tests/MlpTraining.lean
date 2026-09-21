@@ -19,7 +19,7 @@ namespace LeanProfilerTorchLean.Tests.MlpTraining
 
 open LeanProfiler.TorchLean.MlpTraining
 open _root_.TorchLean
-open NN.Examples.Quickstart.SimpleMLPTrain
+open NN.Examples.Quickstart.SimpleMlpTrain
 
 def expect (label : String) (condition : Bool) : IO Unit := do
   unless condition do
@@ -27,11 +27,11 @@ def expect (label : String) (condition : Bool) : IO Unit := do
 
 /-- Run a short deterministic MLP workload and validate its result summary. -/
 public def run : IO Unit := do
-  let summary := nn.summary (Trainer.new model { seed := 0 }).model
+  let summary ← IO.ofExcept (nn.summary (Trainer.new model { seed := 0 }).model)
   expect "the example uses the 33-parameter quickstart MLP"
-    (summary.layerCount == 3 && summary.totalParams == 33)
+    (summary.layerCount == 3 && summary.totalParameterCount == 33)
   LeanProfiler.TorchLean.MlpTraining.run
     { enabled := false }
-    { steps := 1, batchSize := 1, warmupRuns := 0, predictionRuns := 1 }
+    { steps := 1, samplesPerStep := 1, warmupRuns := 0, predictionRuns := 1 }
 
 end LeanProfilerTorchLean.Tests.MlpTraining

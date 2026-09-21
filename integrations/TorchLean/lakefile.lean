@@ -67,12 +67,20 @@ with `-K cuda=true`.
 private def torchLeanOptions : Lean.NameMap String :=
   let options : Lean.NameMap String := {}
   let options :=
+    match get_config? torchleanBuildDir with
+    | some value => options.insert `torchleanBuildDir value
+    | none => options
+  let options :=
     match get_config? cuda with
     | some value => options.insert `cuda value
     | none => options
   let options :=
     match get_config? cuda_home with
     | some value => options.insert `cuda_home value
+    | none => options
+  let options :=
+    match get_config? cuda_arch with
+    | some value => options.insert `cuda_arch value
     | none => options
   let options :=
     match get_config? libtorch_home with

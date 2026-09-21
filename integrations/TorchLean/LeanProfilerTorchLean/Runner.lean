@@ -9,7 +9,7 @@ module
 import LeanProfiler
 import LeanProfilerTorchLean.CommandMetadata
 import LeanProfilerTorchLean.Cuda
-import NN.Examples.Models.Runner
+import NN.Examples.Runner
 
 /-!
 # TorchLean runner
@@ -22,7 +22,7 @@ namespace LeanProfiler.TorchLean
 /-- Run the TorchLean model dispatcher with profiling controlled by `LEAN_PROFILE`. -/
 public def run (args : List String) : IO UInt32 := do
   let commandLabel :=
-    match NN.Examples.Models.Runner.splitCommandArgs? args with
+    match NN.Examples.Runner.splitCommandArgs? args with
     | some (_, command, _) => s!"torchlean.{command}"
     | none => "torchlean.command"
   let metadata := CommandMetadata.fromArguments args
@@ -32,7 +32,7 @@ public def run (args : List String) : IO UInt32 := do
     else
       SpanHooks.none
   LeanProfiler.profileFromEnvironment "main" do
-    LeanProfiler.span commandLabel (NN.Examples.Models.Runner.main args)
+    LeanProfiler.span commandLabel (NN.Examples.Runner.main args)
       (metadata := metadata) (hooks := hooks)
 
 end LeanProfiler.TorchLean
