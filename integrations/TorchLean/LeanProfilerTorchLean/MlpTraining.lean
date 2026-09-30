@@ -49,7 +49,7 @@ def modelMetadata : Metadata :=
 /-- Profile one training run and repeated predictions with TorchLean's quickstart MLP. -/
 public def run (profiler : ProfilerConfig) (workload : WorkloadConfig := {}) : IO Unit := do
   let trainer := Trainer.new model {
-    objective := .meanSquaredError
+    objective := .mse
     optimizer := optim.adam { learningRate := 0.03 }
     arithmetic := .native
     execution := .eager

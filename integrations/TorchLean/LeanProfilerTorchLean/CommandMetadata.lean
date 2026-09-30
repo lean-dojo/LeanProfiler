@@ -7,6 +7,7 @@ Authors: LeanProfiler Team
 module
 
 public import LeanProfiler.Runtime.Event
+import NN.Backend.Types
 
 /-!
 # TorchLean command metadata
@@ -45,6 +46,6 @@ public def fromArguments (args : List String) : Metadata :=
 
 /-- Whether the command explicitly selects TorchLean's CUDA runtime. -/
 public def usesCuda (args : List String) : Bool :=
-  optionValue? "--device" args == some "cuda"
+  ((optionValue? "--device" args).bind NN.Backend.Device.parse?) == some .cuda
 
 end LeanProfiler.TorchLean.CommandMetadata

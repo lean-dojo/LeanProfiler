@@ -18,10 +18,13 @@ checks without first running unrelated dataset or Python interoperability suites
 /--
 Run the CUDA coverage suite selected by the current TorchLean native build.
 
-The allocator cache-cap test re-executes this binary with a fixed native environment. Its child
-must run only the cache probe; entering the full suite again would recursively fork more children.
+Allocator tests re-execute this binary in fresh processes. Each child must run only its selected
+probe; entering the full suite again would recursively fork more children.
 -/
 public def main : IO Unit := do
-  match ← IO.getEnv "TORCHLEAN_CUDA_CACHE_PROBE" with
-  | some "cache-cap" => Tests.Cuda.Stress.runCacheCapProbe
-  | _ => Tests.Cuda.run
+  match ← IO.getEnv "TORCHLEAN_LIBTORCH_MEMORY_PROBE" with
+  | some "accounting" => Tests.Cuda.Stress.runMemoryAccountingProbe
+  | some "attention-buffers" => Tests.Cuda.Stress.runAttentionMemoryProbe
+  | some "oom-recovery" => Tests.Cuda.Stress.runMemoryOOMProbe
+  | some other => throw <| IO.userError s!"unknown LibTorch memory probe: {other}"
+  | none => Tests.Cuda.run

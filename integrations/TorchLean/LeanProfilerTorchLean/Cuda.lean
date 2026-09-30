@@ -7,7 +7,8 @@ Authors: LeanProfiler Team
 module
 
 public import LeanProfiler.Runtime.Span
-public import NN.Runtime.Autograd.Engine.Cuda.Buffer
+public import NN.Runtime.Autograd.Engine.LibTorch.Buffer
+import NN.Runtime.Autograd.Engine.LibTorch.Controls
 
 /-!
 # TorchLean CUDA profiling
@@ -18,21 +19,7 @@ snapshots. It remains outside the core profiler so importing `LeanProfiler` does
 
 namespace LeanProfiler.TorchLean.Cuda
 
-open Runtime.Autograd.Cuda
-
-@[extern "leanprofiler_torchlean_cuda_synchronize"]
-opaque synchronizeRaw (token : UInt64) : UInt32
-
-/--
-Wait until work already submitted to the current CUDA device has completed.
-
-The returned CUDA status is checked in Lean so a failed fence is retained as a hook diagnostic.
--/
-public def synchronize : IO Unit := do
-  let token ← IO.monoNanosNow
-  let status := synchronizeRaw (UInt64.ofNat token)
-  unless status == 0 do
-    throw <| IO.userError s!"CUDA synchronization failed with status {status}"
+open Runtime.Autograd.LibTorch
 
 /-- Signed difference between two monotonically sampled unsigned byte counters. -/
 def byteDelta (before after : UInt64) : Int :=
@@ -45,15 +32,16 @@ def byteDelta (before after : UInt64) : Int :=
 Synchronize CUDA at the end of a span and attach TorchLean allocator counters.
 
 The recorded host duration includes outstanding queue time and the synchronization itself.
-`allocLiveBytes`, `allocPeakBytes`, and `allocDeltaBytes` describe TorchLean-owned device buffers,
-not allocations made by unrelated CUDA libraries.
+`allocLiveBytes`, `allocPeakBytes`, and `allocDeltaBytes` count logical payload bytes in
+TorchLean-owned buffers. They are not LibTorch allocator measurements: aliases, workspaces,
+reserved blocks, and tensors owned outside TorchLean buffers are not accounted for by these counters.
 -/
 public def spanHooks : SpanHooks where
   State := Buffer.AllocatorStats
   prepare := do
     Buffer.requireNativeRuntime
     Buffer.allocatorStats
-  completeTiming := fun _ => synchronize
+  completeTiming := fun _ => Runtime.Autograd.LibTorch.synchronize
   enrich := fun before metadata => do
     let after ← Buffer.allocatorStats
     pure {

@@ -53,7 +53,7 @@ Arguments after the executable name go to TorchLean's model runner:
 LEAN_PROFILE=1 \
 LEAN_PROFILE_OUT=build/traces/mlp-cpu.json \
 LEAN_PROFILE_SUMMARY_OUT=build/summaries/mlp-cpu.json \
-lake exe leanprofiler_torchlean mlp --device cpu
+lake exe leanprofiler_torchlean quickstart_mlp --device cpu --steps 3
 ```
 
 The runner records the selected command as a child of the session span. Layers, graph nodes,
@@ -74,17 +74,17 @@ lake -R -K cuda=true exe leanprofiler_torchlean \
   quickstart_mlp --device cuda --execution eager --arithmetic native --steps 3
 ```
 
-The integration forwards `cuda_home` and `cuda_arch` to TorchLean. For an A100-only build,
-add `-K cuda_arch=sm_80` to the build and run commands. This is also needed with CUDA 11,
-whose compiler does not accept the default `all-major` target. The toolkit selected by
-`cuda_home` supplies both the headers and linked libraries.
+The integration uses TorchLean's LibTorch backend. Set `TORCHLEAN_LIBTORCH_HOME` or pass
+`-K libtorch_home=PATH` to select the SDK; a CUDA-enabled PyTorch installation can supply it.
+TorchLean's native build handles SDK compilation and linking. The profiler no longer builds
+its own CUDA synchronization bridge or links cuBLAS and cuFFT separately.
 
-An explicit `--device cuda` selects `LeanProfiler.TorchLean.Cuda.spanHooks`. Before the model runs,
-the hook rejects TorchLean's CPU parity stubs and samples the device-buffer allocator. It calls
-`cudaDeviceSynchronize` before the stop timestamp, then records live bytes, peak bytes, and the
-signed live-byte change.
+An explicit `--device cuda` or `--device gpu` selects `LeanProfiler.TorchLean.Cuda.spanHooks`.
+Before the model runs, the hook requires a working LibTorch CUDA backend and samples the
+device-buffer counters. It calls TorchLean's `LibTorch.synchronize` before the stop timestamp,
+then records live bytes, peak bytes, and the signed live-byte change.
 
-One three-step quickstart run produced this trace metadata:
+An earlier three-step quickstart run, using the previous native backend, produced this metadata:
 
 ```json
 {
@@ -97,8 +97,10 @@ One three-step quickstart run produced this trace metadata:
 }
 ```
 
-Those numbers are TorchLean buffer counters. They do not include allocations owned only by cuBLAS,
-cuFFT, another process, or a different allocator.
+These fields still count logical payload bytes owned by TorchLean buffers. They are not LibTorch's
+allocated or reserved memory, and they do not account for shared-storage aliasing, library
+workspaces, cached blocks, or another process. The historical numbers above are not a LibTorch
+memory baseline.
 
 Run TorchLean's focused CUDA regression suite through the integration:
 

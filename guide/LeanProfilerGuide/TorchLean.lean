@@ -76,14 +76,14 @@ LEAN_PROFILE=1 \
 LEAN_PROFILE_OUT=build/traces/mlp-cpu.json \
 LEAN_PROFILE_SUMMARY_OUT=build/summaries/mlp-cpu.json \
 LEAN_PROFILE_PROCESS_NAME="TorchLean MLP CPU" \
-lake exe leanprofiler_torchlean mlp --device cpu
+lake exe leanprofiler_torchlean quickstart_mlp --device cpu
 ```
 
 The outer event tree is:
 
 ```
 main
-└── torchlean.mlp
+└── torchlean.quickstart_mlp
 ```
 
 That span measures the host path through the command. It does not invent layer, graph-node, tensor
@@ -219,18 +219,18 @@ lake -R -K cuda=true exe leanprofiler_torchlean \
   quickstart_mlp --device cuda --execution eager --arithmetic native --steps 3
 ```
 
-The integration forwards `cuda=true` to TorchLean and adds CUDA link flags to the final executable.
-Without that forwarding, Lake can leave a dependency on TorchLean's CPU parity stubs even though
-the workspace root received `-K cuda=true`.
+The integration forwards `cuda=true` and the optional `libtorch_home` setting to TorchLean.
+TorchLean builds and links the LibTorch adapter; the profiler needs no separate CUDA bridge.
+Without option forwarding, Lake would leave the dependency on its unavailable-backend shim even
+though the workspace root received `-K cuda=true`.
 
-When the command line contains `--device cuda`, the runner uses `Cuda.spanHooks`. The hook checks
-TorchLean's native runtime, samples its buffer allocator, runs the model, calls
-[`cudaDeviceSynchronize`](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html),
-and samples the allocator again:
+When the command line contains `--device cuda` or `--device gpu`, the runner uses `Cuda.spanHooks`.
+The hook checks TorchLean's native runtime, samples its buffer counters, runs the model, calls
+TorchLean's `LibTorch.synchronize`, and samples the counters again:
 
 ![A synchronized LeanProfiler host span around CUDA launches, copies, kernels, and final synchronization](../../Assets/cuda-timing-boundary.svg)
 
-A three-step quickstart run recorded:
+An earlier three-step quickstart run with the previous native backend recorded:
 
 ```
 "device": "cuda"
@@ -243,7 +243,9 @@ A three-step quickstart run recorded:
 
 The duration is a synchronized host boundary. It includes queue delay, device work, and
 synchronization overhead; it is not the sum of kernel execution times. The allocator fields count
-TorchLean-owned device buffers. LeanProfiler does not read CUDA events, CUPTI activity, stream IDs,
+logical payload bytes in TorchLean-owned device buffers, not LibTorch's allocated or reserved
+memory. These historical values are not a LibTorch memory baseline.
+LeanProfiler does not read CUDA events, CUPTI activity, stream IDs,
 memcopy events, or per-kernel allocations, so Perfetto still shows Lean host threads. Use a native
 device profiler when the synchronized boundary points to CUDA and the next question is which kernel
 or transfer is responsible.

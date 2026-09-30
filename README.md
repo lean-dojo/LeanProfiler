@@ -193,7 +193,7 @@ lake test
 LEAN_PROFILE=1 lake exe leanprofiler_torchlean_mlp
 ```
 
-The runner also has a CUDA adapter. It rejects CPU parity stubs, waits for the selected device
+The runner also has a CUDA adapter. It requires a working LibTorch backend, waits for the selected device
 before closing the command span, and records TorchLean device-buffer counters:
 
 ```sh

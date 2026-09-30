@@ -40,6 +40,8 @@ public def run : IO Unit := do
     ((LeanProfiler.TorchLean.CommandMetadata.fromArguments
       ["--arithmetic=unknown"]).dtype == none)
   expect "CUDA selection" (LeanProfiler.TorchLean.CommandMetadata.usesCuda splitArgs)
+  expect "GPU alias selects CUDA"
+    (LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device=gpu"])
   expect "CPU does not select CUDA"
     (!LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device=cpu"])
   let exitCode ← LeanProfiler.TorchLean.run ["--help"]
