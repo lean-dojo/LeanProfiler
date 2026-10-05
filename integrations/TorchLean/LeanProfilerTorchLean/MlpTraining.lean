@@ -20,6 +20,7 @@ namespace LeanProfiler.TorchLean.MlpTraining
 
 open LeanProfiler
 open _root_.TorchLean
+open Trainer.Objective (mse)
 open NN.Examples.Quickstart.SimpleMlpTrain
 
 /-- Training and inference sizes for the MLP workload. -/
@@ -49,10 +50,10 @@ def modelMetadata : Metadata :=
 /-- Profile one training run and repeated predictions with TorchLean's quickstart MLP. -/
 public def run (profiler : ProfilerConfig) (workload : WorkloadConfig := {}) : IO Unit := do
   let trainer := Trainer.new model {
-    objective := .mse
+    objective := mse
     optimizer := optim.adam { learningRate := 0.03 }
-    arithmetic := .native
-    execution := .eager
+    arithmetic := native
+    execution := eager
     seed := workload.seed
   }
   IO.println "== TorchLean MLP profile =="

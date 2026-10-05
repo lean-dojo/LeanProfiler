@@ -15,6 +15,10 @@ lake lint
 The Lake manifest records the resolved TorchLean revision. Run `lake update TorchLean` when you
 intend to move that pin.
 
+This integration now follows TorchLean's tensor API and LibTorch runtime at `13d02834`.
+The core profiler still has no TorchLean dependency; projects can add spans without importing
+the model workloads or GPU hooks.
+
 ## Use the core API
 
 A TorchLean project can instrument its own model loop with the root package:
@@ -136,8 +140,8 @@ torchlean.mlp-training
 └── model.predict × 10
 ```
 
-`WorkloadConfig` controls the seed, optimizer-update count, batch size, warmup count, and measured
-prediction count.
+`WorkloadConfig` controls the seed, optimizer-update count, samples per update, warmup count,
+and measured prediction count.
 
 ## Read the timing correctly
 
