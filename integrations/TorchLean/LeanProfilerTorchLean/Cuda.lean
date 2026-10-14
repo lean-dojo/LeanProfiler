@@ -34,16 +34,16 @@ Synchronize CUDA at the end of a span and attach TorchLean allocator counters.
 The recorded host duration includes outstanding queue time and the synchronization itself.
 `allocLiveBytes`, `allocPeakBytes`, and `allocDeltaBytes` count logical payload bytes in
 TorchLean-owned buffers. They are not LibTorch allocator measurements: aliases, workspaces,
-reserved blocks, and tensors owned outside TorchLean buffers are not accounted for by these counters.
+reserved blocks, and tensors owned outside TorchLean buffers are not counted.
 -/
 public def spanHooks : SpanHooks where
-  State := Buffer.AllocatorStats
+  State := Buffer.Memory
   prepare := do
     Buffer.requireNativeRuntime
-    Buffer.allocatorStats
+    Buffer.memory
   completeTiming := fun _ => Runtime.Autograd.LibTorch.synchronize
   enrich := fun before metadata => do
-    let after ← Buffer.allocatorStats
+    let after ← Buffer.memory
     pure {
       metadata with
       device := some "cuda"

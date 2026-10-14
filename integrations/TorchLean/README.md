@@ -15,10 +15,6 @@ lake lint
 The Lake manifest records the resolved TorchLean revision. Run `lake update TorchLean` when you
 intend to move that pin.
 
-This integration now follows TorchLean's tensor API and LibTorch runtime at `13d02834`.
-The core profiler still has no TorchLean dependency; projects can add spans without importing
-the model workloads or GPU hooks.
-
 ## Use the core API
 
 A TorchLean project can instrument its own model loop with the root package:
@@ -80,31 +76,18 @@ lake -R -K cuda=true exe leanprofiler_torchlean \
 
 The integration uses TorchLean's LibTorch backend. Set `TORCHLEAN_LIBTORCH_HOME` or pass
 `-K libtorch_home=PATH` to select the SDK; a CUDA-enabled PyTorch installation can supply it.
-TorchLean's native build handles SDK compilation and linking. The profiler no longer builds
-its own CUDA synchronization bridge or links cuBLAS and cuFFT separately.
+TorchLean's native build handles SDK compilation and linking. The profiler uses the same
+runtime for synchronization and memory reporting.
 
 An explicit `--device cuda` or `--device gpu` selects `LeanProfiler.TorchLean.Cuda.spanHooks`.
+The runner uses TorchLean's own flag parser, so the last device flag wins if it is repeated.
 Before the model runs, the hook requires a working LibTorch CUDA backend and samples the
 device-buffer counters. It calls TorchLean's `LibTorch.synchronize` before the stop timestamp,
 then records live bytes, peak bytes, and the signed live-byte change.
 
-An earlier three-step quickstart run, using the previous native backend, produced this metadata:
-
-```json
-{
-  "device": "cuda",
-  "timing": "device-synchronized",
-  "alloc_live_bytes": 0,
-  "alloc_peak_bytes": 1596,
-  "alloc_delta_bytes": 0,
-  "hook_error": null
-}
-```
-
-These fields still count logical payload bytes owned by TorchLean buffers. They are not LibTorch's
+The memory fields count logical payload bytes owned by TorchLean buffers. They are not LibTorch's
 allocated or reserved memory, and they do not account for shared-storage aliasing, library
-workspaces, cached blocks, or another process. The historical numbers above are not a LibTorch
-memory baseline.
+workspaces, cached blocks, or another process.
 
 Run TorchLean's focused CUDA regression suite through the integration:
 

@@ -12,7 +12,7 @@ import NN.Examples.Quickstart.SimpleMlpTrain
 /-!
 # TorchLean MLP tests
 
-Checks the workload defaults and runs a minimal training and prediction capture.
+Checks the model summary and runs a minimal training and prediction workload.
 -/
 
 namespace LeanProfilerTorchLean.Tests.MlpTraining
@@ -25,7 +25,7 @@ def expect (label : String) (condition : Bool) : IO Unit := do
   unless condition do
     throw <| IO.userError s!"TorchLean MLP profile test failed: {label}"
 
-/-- Run a short deterministic MLP workload and validate its result summary. -/
+/-- Check the model dimensions and exercise one training step and prediction. -/
 public def run : IO Unit := do
   let summary ← IO.ofExcept (nn.summary (Trainer.new model { seed := 0 }).model)
   expect "the example uses the 33-parameter quickstart MLP"

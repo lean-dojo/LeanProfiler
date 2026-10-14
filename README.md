@@ -2,7 +2,7 @@
 
 Application-level runtime profiling for compiled Lean programs.
 
-The core package, TorchLean integration, and guide use Lean 4.34.0.
+The core package, TorchLean integration, and guide use Lean 4.35.0.
 
 ## Why it exists
 

@@ -22,7 +22,7 @@ def expect (label : String) (condition : Bool) : IO Unit :=
   unless condition do
     throw <| IO.userError s!"runner metadata test failed: {label}"
 
-/-- Check that the integration delegates recognized and unknown model commands correctly. -/
+/-- Check runtime labels and device selection, then delegate the runner's help command. -/
 public def run : IO Unit := do
   let splitArgs :=
     ["quickstart_mlp", "--device", "cuda", "--execution=eager", "--arithmetic", "native"]
@@ -44,6 +44,16 @@ public def run : IO Unit := do
     (LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device=gpu"])
   expect "CPU does not select CUDA"
     (!LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device=cpu"])
+  expect "last device flag selects CUDA"
+    (LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device", "cpu", "--device=gpu"])
+  expect "last device flag selects CPU"
+    (!LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device=gpu", "--device", "cpu"])
+  expect "GPU alias has the canonical device label"
+    ((LeanProfiler.TorchLean.CommandMetadata.fromArguments ["--device=gpu"]).device ==
+      some "cuda")
+  expect "invalid runtime flags do not select a timing hook"
+    (!LeanProfiler.TorchLean.CommandMetadata.usesCuda
+      ["--device=cuda", "--arithmetic=unknown"])
   let exitCode ← LeanProfiler.TorchLean.run ["--help"]
   unless exitCode == 0 do
     throw <| IO.userError s!"TorchLean runner returned {exitCode} for --help"

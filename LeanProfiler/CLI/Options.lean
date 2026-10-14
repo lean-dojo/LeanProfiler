@@ -29,10 +29,6 @@ public structure CompareOptions where
   allowIncomplete : Bool := false
   deriving Repr, Inhabited
 
-/-- Parse the stable spelling of a comparison metric. -/
-public def parseMetric (value : String) : Except String ComparisonMetric :=
-  ComparisonMetric.parse value
-
 def parseNatFlag (flag value : String) : Except String Nat :=
   match value.toNat? with
   | some result => pure result
@@ -41,7 +37,7 @@ def parseNatFlag (flag value : String) : Except String Nat :=
 def parseFlags (options : CompareOptions) : List String → Except String CompareOptions
   | [] => pure options
   | "--metric" :: value :: rest => do
-      let metric ← parseMetric value
+      let metric ← ComparisonMetric.parse value
       parseFlags { options with config := { options.config with metric } } rest
   | "--absolute-tolerance" :: value :: rest => do
       let absolute ← parseNatFlag "--absolute-tolerance" value

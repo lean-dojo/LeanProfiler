@@ -230,21 +230,11 @@ TorchLean's `LibTorch.synchronize`, and samples the counters again:
 
 ![A synchronized LeanProfiler host span around CUDA launches, copies, kernels, and final synchronization](../../Assets/cuda-timing-boundary.svg)
 
-An earlier three-step quickstart run with the previous native backend recorded:
-
-```
-"device": "cuda"
-"timing": "device-synchronized"
-"alloc_live_bytes": 0
-"alloc_peak_bytes": 1596
-"alloc_delta_bytes": 0
-"hook_error": null
-```
-
 The duration is a synchronized host boundary. It includes queue delay, device work, and
-synchronization overhead; it is not the sum of kernel execution times. The allocator fields count
-logical payload bytes in TorchLean-owned device buffers, not LibTorch's allocated or reserved
-memory. These historical values are not a LibTorch memory baseline.
+synchronization overhead; it is not the sum of kernel execution times. In the trace, look for
+`timing = device-synchronized` and check `hook_error` before using a span as a device measurement.
+The `alloc_live_bytes`, `alloc_peak_bytes`, and `alloc_delta_bytes` fields count logical payload
+bytes in TorchLean-owned device buffers, not LibTorch's allocated or reserved memory.
 LeanProfiler does not read CUDA events, CUPTI activity, stream IDs,
 memcopy events, or per-kernel allocations, so Perfetto still shows Lean host threads. Use a native
 device profiler when the synchronized boundary points to CUDA and the next question is which kernel
