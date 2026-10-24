@@ -12,8 +12,8 @@ lake test
 lake lint
 ```
 
-The Lake manifest records the resolved TorchLean revision. Run `lake update TorchLean` when you
-intend to move that pin.
+The package follows TorchLean's `main` branch. Run `lake update TorchLean` to adopt its latest
+changes; the manifest records the revision used by this checkout.
 
 ## Use the core API
 
@@ -71,7 +71,7 @@ LEAN_PROFILE=1 \
 LEAN_PROFILE_OUT=build/cuda-mlp-trace.json \
 LEAN_PROFILE_SUMMARY_OUT=build/cuda-mlp-summary.json \
 lake -R -K cuda=true exe leanprofiler_torchlean \
-  quickstart_mlp --device cuda --execution eager --arithmetic native --steps 3
+  quickstart_mlp --device cuda --arithmetic native --steps 3
 ```
 
 The integration uses TorchLean's LibTorch backend. Set `TORCHLEAN_LIBTORCH_HOME` or pass

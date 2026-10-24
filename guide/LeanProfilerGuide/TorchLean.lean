@@ -114,10 +114,10 @@ torchlean.mlp-training
 └── model.predict × 10
 ```
 
-`model.train` carries training phase, eager execution, Float32 scalar mode, CPU device, model, and
-shape metadata. Measured predictions carry step numbers in the trace while sharing one grouped row.
+`model.train` records the training phase, tensor IR backend, Float32 arithmetic, CPU device,
+model, and tensor shapes. Prediction spans carry step numbers while sharing one grouped row.
 
-The Lean 4.34 capture reached a loss of `0.178789`, down from `1.159370`. Ten post-warmup
+The Lean 4.35 capture reached a loss of `0.178789`, down from `1.159370`. Ten post-warmup
 prediction spans form the distribution below:
 
 ![Ten measured prediction latencies from the TorchLean quickstart MLP](../../Assets/torchlean-prediction-latency.svg)
@@ -188,7 +188,8 @@ training, place narrower spans in the training loop that owns those phases. Pred
 the caller owns every repeated call, so each one can carry a step index while all calls share one
 summary row.
 
-Shape, scalar mode, execution mode, and device labels come from the TorchLean integration.
+The application supplies shape and backend labels; the command runner reads arithmetic and device
+flags through TorchLean's parser.
 LeanProfiler itself does not inspect tensor values, which keeps its core usable by any Lean
 application.
 
@@ -216,7 +217,7 @@ LEAN_PROFILE=1 \
 LEAN_PROFILE_OUT=build/mlp-cuda-trace.json \
 LEAN_PROFILE_SUMMARY_OUT=build/mlp-cuda-summary.json \
 lake -R -K cuda=true exe leanprofiler_torchlean \
-  quickstart_mlp --device cuda --execution eager --arithmetic native --steps 3
+  quickstart_mlp --device cuda --arithmetic native --steps 3
 ```
 
 The integration forwards `cuda=true` and the optional `libtorch_home` setting to TorchLean.
@@ -255,9 +256,9 @@ tag := "torchlean-comparisons"
 Before attributing a change to TorchLean:
 
 - retain the resolved TorchLean revision;
-- use the same toolchain, build options, model arguments, seed, execution mode, scalar mode, and
+- use the same toolchain, build options, model arguments, seed, backend profile, arithmetic, and
   device;
-- warm up compiled graphs and device libraries before active samples;
+- warm up device libraries and any custom kernels before active samples;
 - collect several process runs;
 - keep device completion policy identical.
 

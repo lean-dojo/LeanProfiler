@@ -24,8 +24,6 @@ public def fromArguments (args : List String) : Metadata :=
   | none => { activity := some "model command" }
   | some (selection, _) => {
       activity := some "model command"
-      backend := if TorchLean.CLI.hasFlagValue args "execution" then
-        some (TorchLean.Runtime.ExecutionMode.cliName selection.execution) else none
       dtype := if TorchLean.CLI.hasFlagValue args "arithmetic" then
         some (match selection.arithmetic with
           | .native => "float32"

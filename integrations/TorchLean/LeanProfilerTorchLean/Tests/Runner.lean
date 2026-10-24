@@ -25,10 +25,10 @@ def expect (label : String) (condition : Bool) : IO Unit :=
 /-- Check runtime labels and device selection, then delegate the runner's help command. -/
 public def run : IO Unit := do
   let splitArgs :=
-    ["quickstart_mlp", "--device", "cuda", "--execution=eager", "--arithmetic", "native"]
+    ["quickstart_mlp", "--device", "cuda", "--arithmetic", "native"]
   let metadata := LeanProfiler.TorchLean.CommandMetadata.fromArguments splitArgs
   expect "split device flag" (metadata.device == some "cuda")
-  expect "inline execution flag" (metadata.backend == some "eager")
+  expect "command metadata does not infer a backend" (metadata.backend == none)
   expect "native arithmetic uses binary32" (metadata.dtype == some "float32")
   expect "software IEEE arithmetic retains its label"
     ((LeanProfiler.TorchLean.CommandMetadata.fromArguments

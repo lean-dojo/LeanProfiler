@@ -39,7 +39,7 @@ public structure WorkloadConfig where
 
 def modelMetadata : Metadata :=
   {
-    backend := some "eager"
+    backend := some "tensor-ir"
     dtype := some "float32"
     device := some "cpu"
     moduleName := some "quickstart.simple-mlp"
@@ -51,9 +51,8 @@ def modelMetadata : Metadata :=
 public def run (profiler : ProfilerConfig) (workload : WorkloadConfig := {}) : IO Unit := do
   let trainer := Trainer.new model {
     objective := mse
-    optimizer := optim.adam { learningRate := 0.03 }
+    optimizer := optim.adam { lr := 0.03 }
     arithmetic := native
-    execution := eager
     seed := workload.seed
   }
   IO.println "== TorchLean MLP profile =="

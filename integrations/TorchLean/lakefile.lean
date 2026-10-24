@@ -49,6 +49,8 @@ package LeanProfilerTorchLean where
     ⟨`linter.redundantVisibility, true⟩
   ]
   moreLinkArgs := nativeLinkArgs
+  -- Load TorchLean's packed CPU helper for editor and `#eval` workloads too.
+  dynlibs := #[`@TorchLean/torchlean_tensor_cpu_shared]
 
 require LeanProfiler from "../.."
 
