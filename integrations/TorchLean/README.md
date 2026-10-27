@@ -85,9 +85,10 @@ Before the model runs, the hook requires a working LibTorch CUDA backend and sam
 device-buffer counters. It calls TorchLean's `LibTorch.synchronize` before the stop timestamp,
 then records live bytes, peak bytes, and the signed live-byte change.
 
-The memory fields count logical payload bytes owned by TorchLean buffers. They are not LibTorch's
-allocated or reserved memory, and they do not account for shared-storage aliasing, library
-workspaces, cached blocks, or another process.
+The memory fields count logical payload bytes owned by TorchLean buffer handles. Shared storage
+can be counted more than once. These fields are not LibTorch's allocated or reserved memory;
+native temporaries, library workspaces and cached blocks need not have a TorchLean handle.
+TorchLean's `Buffer.memory` also exposes native allocator counters; this hook records ownership.
 
 Run TorchLean's focused CUDA regression suite through the integration:
 

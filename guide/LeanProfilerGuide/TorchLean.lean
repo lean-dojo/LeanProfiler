@@ -235,7 +235,10 @@ The duration is a synchronized host boundary. It includes queue delay, device wo
 synchronization overhead; it is not the sum of kernel execution times. In the trace, look for
 `timing = device-synchronized` and check `hook_error` before using a span as a device measurement.
 The `alloc_live_bytes`, `alloc_peak_bytes`, and `alloc_delta_bytes` fields count logical payload
-bytes in TorchLean-owned device buffers, not LibTorch's allocated or reserved memory.
+bytes owned by TorchLean buffer handles, not LibTorch's allocated or reserved memory. Shared
+storage can be counted more than once, and native temporaries need not have a TorchLean handle.
+TorchLean's `Buffer.memory` exposes native allocator counters separately; these fields record
+buffer ownership.
 LeanProfiler does not read CUDA events, CUPTI activity, stream IDs,
 memcopy events, or per-kernel allocations, so Perfetto still shows Lean host threads. Use a native
 device profiler when the synchronized boundary points to CUDA and the next question is which kernel
