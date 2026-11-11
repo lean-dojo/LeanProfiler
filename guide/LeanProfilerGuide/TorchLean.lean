@@ -237,7 +237,7 @@ synchronization overhead; it is not the sum of kernel execution times. In the tr
 The `alloc_live_bytes`, `alloc_peak_bytes`, and `alloc_delta_bytes` fields count logical payload
 bytes owned by TorchLean buffer handles, not LibTorch's allocated or reserved memory. Shared
 storage can be counted more than once, and native temporaries need not have a TorchLean handle.
-TorchLean's `Buffer.memory` exposes native allocator counters separately; these fields record
+TorchLean's `Buffer.Memory.read` also exposes native allocator counters. These fields record
 buffer ownership.
 LeanProfiler does not read CUDA events, CUPTI activity, stream IDs,
 memcopy events, or per-kernel allocations, so Perfetto still shows Lean host threads. Use a native

@@ -7,8 +7,7 @@ Authors: LeanProfiler Team
 module
 
 public import LeanProfiler.Runtime.Span
-public import NN.Runtime.Autograd.Engine.LibTorch.Buffer
-import NN.Runtime.Autograd.Engine.LibTorch.Controls
+public import TorchLean.CUDA.LibTorch.Buffer
 
 /-!
 # TorchLean CUDA profiling
@@ -19,7 +18,7 @@ snapshots. It remains outside the core profiler so importing `LeanProfiler` does
 
 namespace LeanProfiler.TorchLean.Cuda
 
-open Runtime.Autograd.LibTorch
+open _root_.TorchLean.LibTorch
 
 /-- Signed difference between two monotonically sampled unsigned byte counters. -/
 def byteDelta (before after : UInt64) : Int :=
@@ -35,16 +34,16 @@ The recorded host duration includes outstanding queue time and the synchronizati
 `allocLiveBytes`, `allocPeakBytes`, and `allocDeltaBytes` count logical payload bytes in
 TorchLean buffer handles, so shared storage can be counted more than once. They are not LibTorch
 allocator measurements: native temporaries, workspaces and reserved blocks need not have a
-TorchLean handle. `Buffer.memory` exposes native allocator counters separately.
+TorchLean handle. `Buffer.Memory.read` also exposes native allocator counters.
 -/
 public def spanHooks : SpanHooks where
   State := Buffer.Memory
   prepare := do
     Buffer.requireNativeRuntime
-    Buffer.memory
-  completeTiming := fun _ => Runtime.Autograd.LibTorch.synchronize
+    Buffer.Memory.read
+  completeTiming := fun _ => _root_.TorchLean.LibTorch.synchronize
   enrich := fun before metadata => do
-    let after ← Buffer.memory
+    let after ← Buffer.Memory.read
     pure {
       metadata with
       device := some "cuda"

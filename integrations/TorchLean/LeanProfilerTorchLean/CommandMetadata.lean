@@ -7,7 +7,7 @@ Authors: LeanProfiler Team
 module
 
 public import LeanProfiler.Runtime.Event
-import NN.API.Module.Command
+import TorchLean.NN.Module.Command
 
 /-!
 # TorchLean command metadata
@@ -20,7 +20,7 @@ namespace LeanProfiler.TorchLean.CommandMetadata
 
 /-- Structured runtime labels inferred from TorchLean's common command flags. -/
 public def fromArguments (args : List String) : Metadata :=
-  match (TorchLean.Module.RuntimeSelection.parse args).toOption with
+  match (TorchLean.Module.RuntimeFlags.parse args).toOption with
   | none => { activity := some "model command" }
   | some (selection, _) => {
       activity := some "model command"
@@ -35,7 +35,7 @@ public def fromArguments (args : List String) : Metadata :=
 
 /-- Whether the command explicitly selects TorchLean's CUDA runtime. -/
 public def usesCuda (args : List String) : Bool :=
-  match (TorchLean.Module.RuntimeSelection.parse args).toOption with
+  match (TorchLean.Module.RuntimeFlags.parse args).toOption with
   | some (selection, _) => selection.device == .cuda
   | none => false
 

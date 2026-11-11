@@ -8,7 +8,7 @@ module
 
 public import LeanProfiler.Config
 import LeanProfiler.Instrumentation
-import NN.Examples.Quickstart.SimpleMlpTrain
+import TorchLeanExamples.Quickstart.MLP
 
 /-!
 # TorchLean MLP training profile
@@ -21,7 +21,7 @@ namespace LeanProfiler.TorchLean.MlpTraining
 open LeanProfiler
 open _root_.TorchLean
 open Trainer.Objective (mse)
-open NN.Examples.Quickstart.SimpleMlpTrain
+open _root_.TorchLean.Examples.Quickstart.MLP
 
 /-- Training and inference sizes for the MLP workload. -/
 public structure WorkloadConfig where
@@ -43,16 +43,16 @@ def modelMetadata : Metadata :=
     dtype := some "float32"
     device := some "cpu"
     moduleName := some "quickstart.simple-mlp"
-    inputShapes := #[Shape.pretty [2]]
-    outputShapes := #[Shape.pretty [1]]
+    inputShapes := #[toString ([2] : Shape)]
+    outputShapes := #[toString ([1] : Shape)]
   }
 
 /-- Profile one training run and repeated predictions with TorchLean's quickstart MLP. -/
 public def run (profiler : ProfilerConfig) (workload : WorkloadConfig := {}) : IO Unit := do
-  let trainer := Trainer.new model {
+  let trainer := Trainer.create model {
     objective := mse
     optimizer := optim.adam { lr := 0.03 }
-    arithmetic := native
+    arithmetic := .native
     seed := workload.seed
   }
   IO.println "== TorchLean MLP profile =="

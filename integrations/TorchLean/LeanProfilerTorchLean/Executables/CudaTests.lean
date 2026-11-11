@@ -6,7 +6,7 @@ Authors: LeanProfiler Team
 
 module
 
-import NN.Tests.Runtime.Cuda.Suite
+import TorchLeanTest.CUDA.Suite
 
 /-!
 # TorchLean CUDA test executable
@@ -23,8 +23,8 @@ probe; entering the full suite again would recursively fork more children.
 -/
 public def main : IO Unit := do
   match ← IO.getEnv "TORCHLEAN_LIBTORCH_MEMORY_PROBE" with
-  | some "accounting" => Tests.Cuda.Stress.runMemoryAccountingProbe
-  | some "attention-buffers" => Tests.Cuda.Stress.runAttentionMemoryProbe
-  | some "oom-recovery" => Tests.Cuda.Stress.runMemoryOOMProbe
+  | some "accounting" => TorchLean.Test.CUDA.Stress.runMemoryAccountingProbe
+  | some "attention-buffers" => TorchLean.Test.CUDA.Stress.runAttentionMemoryProbe
+  | some "oom-recovery" => TorchLean.Test.CUDA.Stress.runMemoryOOMProbe
   | some other => throw <| IO.userError s!"unknown LibTorch memory probe: {other}"
-  | none => Tests.Cuda.run
+  | none => TorchLean.Test.CUDA.run

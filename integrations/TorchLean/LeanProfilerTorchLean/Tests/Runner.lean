@@ -44,10 +44,11 @@ public def run : IO Unit := do
     (LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device=gpu"])
   expect "CPU does not select CUDA"
     (!LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device=cpu"])
-  expect "last device flag selects CUDA"
-    (LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device", "cpu", "--device=gpu"])
-  expect "last device flag selects CPU"
-    (!LeanProfiler.TorchLean.CommandMetadata.usesCuda ["--device=gpu", "--device", "cpu"])
+  let duplicateDevice := ["--device", "cpu", "--device=gpu"]
+  expect "duplicate device flags do not select a timing hook"
+    (!LeanProfiler.TorchLean.CommandMetadata.usesCuda duplicateDevice)
+  expect "duplicate device flags do not assign device metadata"
+    ((LeanProfiler.TorchLean.CommandMetadata.fromArguments duplicateDevice).device == none)
   expect "GPU alias has the canonical device label"
     ((LeanProfiler.TorchLean.CommandMetadata.fromArguments ["--device=gpu"]).device ==
       some "cuda")

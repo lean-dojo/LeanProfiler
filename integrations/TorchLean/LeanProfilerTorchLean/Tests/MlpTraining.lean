@@ -7,7 +7,7 @@ Authors: LeanProfiler Team
 module
 
 import LeanProfilerTorchLean.MlpTraining
-import NN.Examples.Quickstart.SimpleMlpTrain
+import TorchLeanExamples.Quickstart.MLP
 
 /-!
 # TorchLean MLP tests
@@ -19,7 +19,7 @@ namespace LeanProfilerTorchLean.Tests.MlpTraining
 
 open LeanProfiler.TorchLean.MlpTraining
 open _root_.TorchLean
-open NN.Examples.Quickstart.SimpleMlpTrain
+open _root_.TorchLean.Examples.Quickstart.MLP
 
 def expect (label : String) (condition : Bool) : IO Unit := do
   unless condition do
@@ -27,7 +27,7 @@ def expect (label : String) (condition : Bool) : IO Unit := do
 
 /-- Check the model dimensions and exercise one training step and prediction. -/
 public def run : IO Unit := do
-  let summary ← IO.ofExcept (nn.summary (Trainer.new model { seed := 0 }).model)
+  let summary ← IO.ofExcept (nn.summary (Trainer.create model { seed := 0 }).model)
   expect "the example uses the 33-parameter quickstart MLP"
     (summary.layerCount == 3 && summary.totalParameterCount == 33)
   LeanProfiler.TorchLean.MlpTraining.run
