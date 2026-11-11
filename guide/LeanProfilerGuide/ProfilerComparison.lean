@@ -13,15 +13,11 @@ open Verso.Genre Manual
 tag := "profiler-comparison"
 %%%
 
-A Lean command can be slow in three distinct places. Lean may spend time elaborating and compiling
-the program. The running application may spend time reading data, searching, serving requests, or
-waiting at a foreign boundary. A library or device runtime may spend time in native functions,
-memory copies, and kernels. No single profiler sees all three.
+Choose a profiler for the code you need to measure. Lean's built-in tools profile elaboration and
+compilation. LeanProfiler records named phases in the running program. PyTorch Profiler and device
+tools provide detail inside framework calls and kernels.
 
-![The observation boundaries of Lean profiling tools, LeanProfiler, and a foreign runtime profiler](../../Assets/profiler-scope.svg)
-
-The views can support one investigation, but their events and timing columns answer different
-questions.
+[![The observation boundaries of Lean profiling tools, LeanProfiler, and a foreign runtime profiler](Assets/profiler-scope.svg)](Assets/profiler-scope.svg)
 
 # Before `main`: Lean's profilers
 %%%
@@ -34,8 +30,7 @@ Use Lean's command-line profile when a declaration makes a file slow to build:
 lake env lean --profile MyProject/SlowModule.lean
 ```
 
-It reports elaboration and type-checking time by declaration. Use it when an import or theorem
-became expensive before the executable starts.
+It reports elaboration and type-checking time by declaration.
 
 Lean's [`profiler` option](https://lean-lang.org/doc/api/Lean/Util/Profile.html) accumulates
 exclusive time inside instrumented elaborator and compiler components:
@@ -64,21 +59,15 @@ With `-Dtrace.profiler.useHeartbeats=true`, its measurement and threshold use he
 `trace.profiler.serve` starts an ephemeral loopback server and opens Firefox Profiler. The server
 shuts down after the profile is fetched.
 
-Two smaller tools answer local questions:
-
-- `IO.timeit` prints elapsed time for one `IO` action;
-- `IO.allocprof` invokes Lean's runtime allocation-profiler hook.
-
-These local timers answer a different question from an application profile. A file can elaborate
-quickly while its executable spends minutes serving requests or searching a state space.
+For a single action, `IO.timeit` prints elapsed time. `IO.allocprof` invokes Lean's runtime
+allocation-profiler hook.
 
 # After `main`: LeanProfiler
 %%%
 tag := "runtime-measurement-sources"
 %%%
 
-LeanProfiler measures boundaries chosen by the Lean application. A source indexer can use names
-that do not exist inside the compiler or a foreign library:
+LeanProfiler uses the application's span names and nesting.
 
 ```
 profileFromEnvironment "indexer.run" do
@@ -89,29 +78,17 @@ profileFromEnvironment "indexer.run" do
       span "source.analyze" (analyzeSource syntax)
 ```
 
-Its measurements come from Lean and `Std` runtime APIs:
-
-- `IO.monoNanosNow` for monotonic span boundaries;
-- `IO.getTID` for the current Lean thread;
-- `IO.Process.getPID` for Trace Event process identity;
-- `IO.getNumHeartbeats` for the current thread's work counter;
-- `Std.IO.Process.getResourceUsage` for session-wide process counters.
-
-Heartbeats add a Lean-specific signal alongside elapsed time. LeanProfiler does not discover
-operations by itself: the application decides where a span begins, what it is called, and which
-metadata it carries.
-
-None of these APIs produces accelerator kernel timestamps. A completion hook can synchronize a
-device and attach allocator counters, but an absent field means “not observed,” not zero.
+The runtime supplies monotonic timestamps, thread and process IDs, Lean heartbeats, and process
+resource counters. Device measurements require an adapter. A synchronization hook can wait for
+completion before closing a span.
 
 # Inside PyTorch: PyTorch Profiler
 %%%
 tag := "pytorch-comparison"
 %%%
 
-PyTorch Profiler instruments the framework and supported device runtime. A typical training capture
-selects activities, excludes startup with a schedule, labels one application range, advances the
-schedule after each step, prints operator aggregates, and exports a trace:
+PyTorch Profiler records framework operators and supported device activity. This example schedules
+three active training steps after waiting and warmup, then exports a trace.
 
 ```
 import torch
@@ -147,24 +124,17 @@ with profile(
         prof.step()
 ```
 
-The user range is only one event in this capture. PyTorch can also record framework operators and
-supported runtime activity below it. With CUDA activity enabled, its Kineto integration uses CUPTI
-where available to add runtime calls and on-device kernels to the trace. Other supported builds may
-offer XPU or additional accelerator activity; `torch.profiler.supported_activities()` reports what
-the current installation exposes.
-
-`record_shapes`, `profile_memory`, `with_stack`, and `with_flops` answer different questions and all
-have costs. Shape recording can retain tensor references and affect optimizations. Stack collection
-adds source information but increases overhead. FLOP estimates cover selected operators rather
-than arbitrary code. Start with the smallest feature set that answers the question.
+The trace includes `training.step` and framework operations inside it. CUDA activity uses CUPTI
+where available. Call `torch.profiler.supported_activities()` to check the installed build.
+Shape recording, memory profiling, stack collection, and FLOP estimates add overhead. Enable the
+detail you need for the measurement.
 
 # Similar controls, different observations
 %%%
 tag := "profiler-capability-table"
 %%%
 
-Both profilers name ranges, aggregate repeated work, schedule short captures inside long loops, and
-export a timeline. What creates an event is different:
+Both provide named ranges, capture schedules, aggregates, and trace export.
 
 :::table +header
 *
@@ -225,43 +195,33 @@ export a timeline. What creates an event is different:
   * the user or surrounding tooling defines the gate
 :::
 
-LeanProfiler records the application-level view, including Lean code that never enters PyTorch.
-PyTorch Profiler supplies operator and device detail for work performed inside PyTorch.
-
 # Read the timing columns carefully
 %%%
 tag := "timing-semantics-comparison"
 %%%
 
-LeanProfiler's total duration is the host interval from the start of a span to its end. Self time
-subtracts immediate same-thread child coverage. A synchronized CUDA hook makes that host interval
-wait for device completion, but it still does not become a sum of kernel durations.
+LeanProfiler reports elapsed host time. Self time subtracts immediate same-thread child coverage.
+A CUDA synchronization hook includes the wait for device completion in the host interval.
 
 PyTorch tables separate CPU and supported device measurements. A user range can have CPU total,
 CPU self, and device-related columns derived from events correlated below it. Sorting by
 `self_cpu_time_total` answers a different question from sorting by `self_cuda_time_total`.
 
-Neither table should be treated as hardware utilization. Overlap, asynchronous launches, multiple
-threads, multiple streams, and profiler overhead all matter. Warm up first, keep synchronization
-policy fixed, and compare the same columns under the same configuration.
+Keep the workload, warmup, and synchronization policy fixed when comparing the same timing
+columns. Concurrent threads and streams can overlap, so totals do not directly measure hardware
+utilization.
 
-PyTorch's schedule also has details absent from LeanProfiler's current `Schedule`, including
-`skip_first_wait`. LeanProfiler's `runScheduledCycle` runs waiting and warmup callbacks before
-opening each active session. PyTorch keeps the profiler object around the loop and `step()` advances
-its internal state.
+LeanProfiler's `runScheduledCycle` opens a session around the active steps. PyTorch's `step()`
+advances its profiler through the schedule inside the loop.
 
 # Use both around a foreign boundary
 %%%
 tag := "foreign-runtime-boundary"
 %%%
 
-A Lean program calling PyTorch or LibTorch can place a LeanProfiler span around the foreign call
-and start the framework profiler inside that runtime. The outer span answers how long the Lean
-caller waited and how the call fits among surrounding application phases. The inner trace explains
-the operators and supported device activity responsible for that interval.
-
-Correlating the files requires a shared identifier or timestamp convention supplied by the
-adapter. Two unrelated timelines should not be aligned by eye and presented as one clock.
+Place a LeanProfiler span around the foreign call to locate it within the application's phases.
+Use a profiler inside that runtime to inspect its operators and device activity. To correlate the
+two captures, the adapter must supply a shared identifier or a mapping between their timestamps.
 
 # Start with the symptom
 %%%

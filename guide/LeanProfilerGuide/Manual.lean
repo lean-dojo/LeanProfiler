@@ -5,6 +5,7 @@ Authors: LeanProfiler Team
 -/
 
 import VersoManual
+import LeanProfiler
 import LeanProfilerGuide.GettingStarted
 import LeanProfilerGuide.HowItWorks
 import LeanProfilerGuide.Capture
@@ -14,6 +15,7 @@ import LeanProfilerGuide.ProfilerComparison
 import LeanProfilerGuide.TorchLean
 
 open Verso.Genre Manual
+open Verso.Genre.Manual.InlineLean
 
 #doc (Manual) "LeanProfiler" =>
 %%%
@@ -21,28 +23,41 @@ shortTitle := "LeanProfiler"
 tag := "leanprofiler"
 %%%
 
-Suppose a source indexer that normally finishes in ten seconds suddenly needs thirty. A stopwatch
-confirms the slowdown, but it cannot say whether discovery, parsing, analysis, or writing changed.
-Lean's compiler profilers are excellent when elaboration is the problem; here, however, elaboration
-has already ended and the interesting work begins inside `main`.
+LeanProfiler records how compiled Lean programs spend their time. We can measure a numerical
+solver, a proof-search procedure, or a model's training loop by placing named spans around the
+operations we want to study. Each span records elapsed time, its parent and thread, Lean
+heartbeats, and any metadata supplied by the application.
 
-LeanProfiler fills that gap. The running program names the phases that matter to it: a file indexer
-might record `source.discover`, `source.parse`, and `index.write`, while a server might record
-request parsing, lookup, and serialization. The trace keeps their nesting, threads, metadata,
-elapsed time, and Lean heartbeats. A separate summary groups repeated work, making it possible to
-compare two runs without reading a long timeline by hand.
+The same instrumentation produces a timeline for inspecting one run and a summary for comparing
+repeated runs. We use it in TorchLean to measure training and numerical workloads, with explicit
+synchronization when a measurement includes GPU work.
 
-![A profiling investigation that begins with a slowdown question and ends with a diagnosis or regression gate](Assets/profiling-workflow.svg)
+```lean -keep
+open LeanProfiler
 
-The guide follows a small source indexer that reads and analyzes three files. We capture it, follow
-one span all the way into the report, distinguish self time from total time, slow down the analysis
-phase, and compare the resulting summaries. The checked-in artifacts come from real executions;
-their exact durations belong to the machine and run that produced them.
+/-- Record loading and analysis in separate spans. -/
+def profileAnalysis
+    (load : IO String)
+    (analyze : String → IO Nat) : IO Nat :=
+  profileFromEnvironment "analysis" do
+    let source ← span "source.read" load
+    span "source.analyze" (analyze source)
+```
 
-This is a runtime profiler. If a theorem is slow to elaborate, use Lean's compiler and elaborator
-profilers. If code inside a foreign boundary is slow, use that runtime's profiler for lower-level
-detail. The outer LeanProfiler span still shows how long the Lean caller waited and where that call
-belongs in the rest of the run.
+Enable recording with `LEAN_PROFILE=1` when running the executable. Open the resulting trace in
+[Perfetto](https://ui.perfetto.dev), or use the JSON summary to compare call counts, self time,
+percentiles, and heartbeats.
+
+[![Recorded spans from the source-indexing simulation, with reads and analysis nested inside one run](Assets/nested-spans-timeline.svg)](Assets/nested-spans-timeline.svg)
+
+This trace comes from the [nested-spans example](https://github.com/lean-dojo/LeanProfiler/blob/main/Examples/NestedSpans.lean).
+Its short sleeps simulate reading and analysis so that the nesting and timing calculation are easy
+to inspect. The guide develops that example, explains the measurement rules, and then applies the
+same API to TorchLean.
+
+Start with [a first recording](Record-your-first-run/#getting-started), inspect
+[a trace and summary](Read-the-trace-and-summary/#results), or go directly to
+[profiling TorchLean](Profile-TorchLean/#torchlean).
 
 {include 1 LeanProfilerGuide.GettingStarted}
 

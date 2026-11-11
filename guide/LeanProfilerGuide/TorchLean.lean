@@ -5,22 +5,22 @@ Authors: LeanProfiler Team
 -/
 
 import VersoManual
+import LeanProfiler
 
 open Verso.Genre Manual
+open Verso.Genre.Manual.InlineLean
 
 #doc (Manual) "Profile TorchLean" =>
 %%%
 tag := "torchlean"
 %%%
 
-A TorchLean run crosses several boundaries before a single kernel becomes interesting: data enters
-the program, the model runs, gradients are computed, parameters change, and device work completes.
-LeanProfiler records those application-level intervals without changing TorchLean's tensor or
-proof APIs.
+Use LeanProfiler to measure a TorchLean training call, prediction, or model command. Spans can
+record the data-loading, forward, backward, and optimizer phases wherever the application exposes
+them.
 
-A TorchLean application may depend only on the core LeanProfiler package. This repository also
-contains an optional integration package with a command runner, a real MLP training workload, and
-CUDA completion hooks:
+The optional integration package provides a command runner, an MLP training example, and CUDA
+completion hooks.
 
 ```
 cd integrations/TorchLean
@@ -29,9 +29,8 @@ lake test
 lake lint
 ```
 
-The nested package follows TorchLean's `main` branch in its Lake configuration. Its checked-in
-manifest pins the resolved revision until `lake update TorchLean` is run, so a saved profile can
-name the code it measured.
+The integration's manifest pins TorchLean. Retain that revision with a capture so later
+comparisons can identify the measured code.
 
 # Import the core API
 %%%
@@ -40,12 +39,12 @@ tag := "torchlean-core-import"
 
 If the application already owns its model loop, import only LeanProfiler:
 
-```
-import LeanProfiler
-
+```lean -keep
 open LeanProfiler
 
-def runModel (config : ProfilerConfig) : IO Unit :=
+/-- Record the supplied training phases in one session. -/
+def runModel (config : ProfilerConfig)
+    (forward backward optimizerStep : IO Unit) : IO Unit :=
   profile config "training" do
     span "model.forward" forward
     span "loss.backward" backward
@@ -86,17 +85,16 @@ main
 └── torchlean.quickstart_mlp
 ```
 
-That span measures the host path through the command. It does not invent layer, graph-node, tensor
-operation, kernel, loader-worker, or optimizer events. Add narrower spans only where the running
-program knows the corresponding boundary.
+The outer span measures the whole command. Add spans inside the model loop to measure individual
+phases.
 
 # Train and measure the example MLP
 %%%
 tag := "torchlean-mlp"
 %%%
 
-The second executable profiles TorchLean's `2 → 8 → 1` quickstart MLP and its 25-sample regression
-dataset:
+The MLP executable profiles TorchLean's `2 → 8 → 1` quickstart and its 25-sample regression
+dataset.
 
 ```
 LEAN_PROFILE=1 \
@@ -117,16 +115,16 @@ torchlean.mlp-training
 `model.train` records the training phase, tensor IR backend, Float32 arithmetic, CPU device,
 model, and tensor shapes. Prediction spans carry step numbers while sharing one grouped row.
 
-The Lean 4.35 capture reached a loss of `0.178789`, down from `1.159370`. Ten post-warmup
-prediction spans form the distribution below:
+The saved Lean 4.35 capture reduced loss from `1.159370` to `0.178789`. Its ten measured predictions
+form the distribution below.
 
-![Ten measured prediction latencies from the TorchLean quickstart MLP](../../Assets/torchlean-prediction-latency.svg)
+[![Ten measured prediction latencies from the TorchLean quickstart MLP](Assets/torchlean-prediction-latency.svg)](Assets/torchlean-prediction-latency.svg)
 
-The [trace](../../Assets/torchlean-mlp-trace.json),
-[summary](../../Assets/torchlean-mlp-summary.json), and
-[capture provenance](../../Assets/torchlean-mlp-provenance.json) are available beside the figure.
-These files show the exact artifact format. They are not a portable TorchLean benchmark: latency
-depends on the machine, build, runtime state, and resolved TorchLean revision.
+The [trace](Assets/torchlean-mlp-trace.json),
+[summary](Assets/torchlean-mlp-summary.json), and
+[capture provenance](Assets/torchlean-mlp-provenance.json) are available beside the figure.
+The capture record identifies the toolchain, workload, and local dependency revisions. Use these
+timings to inspect this run and its report format.
 
 Another executable can reuse the workload:
 
@@ -156,8 +154,7 @@ $$`8\cdot2+8+1\cdot8+1=33`
 tag := "training-boundary"
 %%%
 
-The MLP executable profiles the real `Trainer.train` call and then measures a distribution of
-predictions. Its central block is:
+The MLP executable times `Trainer.train`, then measures repeated predictions.
 
 ```
 profile config "torchlean.mlp-training" do
@@ -182,28 +179,21 @@ profile config "torchlean.mlp-training" do
       })
 ```
 
-`model.train` measures the whole trainer call. It cannot split batches, forward evaluation,
-backward evaluation, and optimizer updates from outside that call. If the trace points into
-training, place narrower spans in the training loop that owns those phases. Prediction is different:
-the caller owns every repeated call, so each one can carry a step index while all calls share one
-summary row.
+`model.train` includes the whole trainer call. Measure its internal phases by placing spans in
+the training loop. Prediction spans already surround individual calls, with a step index on each
+event and one summary row for the repeated measurements.
 
-The application supplies shape and backend labels; the command runner reads arithmetic and device
+The application supplies shape and backend labels. The command runner reads arithmetic and device
 flags through TorchLean's parser.
-LeanProfiler itself does not inspect tensor values, which keeps its core usable by any Lean
-application.
 
 # Interpret CPU spans
 %%%
 tag := "cpu-spans"
 %%%
 
-On CPU, a span reports monotonic host elapsed time. It includes Lean execution, blocking foreign
-calls, and time when the thread is descheduled. Self time removes recorded same-thread child
-intervals. It does not remove uninstrumented callees, runtime overhead, or another thread's work.
-
-Session resource counters cover all process threads and foreign runtime activity. They are useful
-context for the capture, not layer-level attribution.
+CPU spans include Lean execution, synchronous foreign calls, and time when the thread is
+descheduled. Self time subtracts recorded child intervals on the same thread. Process resource
+counters cover the whole session across all threads.
 
 # Interpret CUDA spans
 %%%
@@ -220,31 +210,27 @@ lake -R -K cuda=true exe leanprofiler_torchlean \
   quickstart_mlp --device cuda --arithmetic native --steps 3
 ```
 
-The integration forwards `cuda=true` and the optional `libtorch_home` setting to TorchLean.
-TorchLean builds and links the LibTorch adapter; the profiler needs no separate CUDA bridge.
-Without option forwarding, Lake would leave the dependency on its unavailable-backend shim even
-though the workspace root received `-K cuda=true`.
+The integration forwards `cuda=true` and the optional `libtorch_home` setting to TorchLean,
+which builds and links its LibTorch adapter.
 
 When the command line contains `--device cuda` or `--device gpu`, the runner uses `Cuda.spanHooks`.
 The hook checks TorchLean's native runtime, samples its buffer counters, runs the model, calls
 TorchLean's `LibTorch.synchronize`, and samples the counters again:
 
-![A synchronized LeanProfiler host span around CUDA launches, copies, kernels, and final synchronization](../../Assets/cuda-timing-boundary.svg)
+[![A synchronized LeanProfiler host span around CUDA launches, copies, kernels, and final synchronization](Assets/cuda-timing-boundary.svg)](Assets/cuda-timing-boundary.svg)
 
-The duration is a synchronized host boundary. It includes queue delay, device work, and
-synchronization overhead; it is not the sum of kernel execution times. In the trace, look for
-`timing = device-synchronized` and check `hook_error` before using a span as a device measurement.
-The `alloc_live_bytes`, `alloc_peak_bytes`, and `alloc_delta_bytes` fields count logical payload
-bytes owned by TorchLean buffer handles, not LibTorch's allocated or reserved memory. Shared
-storage can be counted more than once, and native temporaries need not have a TorchLean handle.
-TorchLean's `Buffer.Memory.read` also exposes native allocator counters. These fields record
-buffer ownership.
-LeanProfiler does not read CUDA events, CUPTI activity, stream IDs,
-memcopy events, or per-kernel allocations, so Perfetto still shows Lean host threads. Use a native
-device profiler when the synchronized boundary points to CUDA and the next question is which kernel
-or transfer is responsible.
+The duration includes queue delay, device work, and synchronization overhead. Its trace metadata
+sets `timing = device-synchronized`. Check `hook_error` before interpreting the result.
 
-Run TorchLean's CUDA kernel and allocator checks without the unrelated Python and dataset suites:
+The hook's `alloc_live_bytes`, `alloc_peak_bytes`, and `alloc_delta_bytes` count logical payload
+bytes in TorchLean buffer handles. Shared storage can be counted more than once, and native
+temporaries can exist without such a handle. `Buffer.Memory.read` exposes additional native
+allocator counters, but this hook records buffer ownership.
+
+Perfetto shows the Lean host spans. Use a device profiler to inspect the CUDA kernels, streams,
+and memory transfers within a synchronized interval.
+
+Run the integration's CUDA checks with the same build option.
 
 ```
 CUDA_VISIBLE_DEVICES=0 \
@@ -264,6 +250,3 @@ Before attributing a change to TorchLean:
 - warm up device libraries and any custom kernels before active samples;
 - collect several process runs;
 - keep device completion policy identical.
-
-The trace is the place to diagnose order and nesting. The summary is the input to an automated
-comparison.

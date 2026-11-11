@@ -14,15 +14,14 @@ open Verso.Genre Manual
 tag := "how-it-works"
 %%%
 
-The public API makes profiling look like one function call:
+A span records one named action.
 
 ```
 span "source.analyze" (analyzeSource source)
 ```
 
-That small boundary is intentional. The application already knows that this action is source
-analysis; the profiler should preserve that fact without asking the caller to manage clocks,
-thread stacks, or report files. Internally, the span passes through four distinct stages:
+The caller supplies the name. LeanProfiler manages its parent, thread, timestamps, and report
+entry in four steps.
 
 ```
 reserve its place in the event tree
@@ -30,9 +29,6 @@ sample time and Lean heartbeats around the action
 complete and retain an event
 analyze all retained events when the session ends
 ```
-
-Keeping these stages separate is what lets the same capture handle nested calls, worker threads,
-asynchronous runtimes, and repeated measurements without changing the basic `span` API.
 
 # The session owns the capture
 %%%
@@ -43,9 +39,8 @@ tag := "session-capture"
 snapshot, enables instrumentation, and opens the root span. When the action finishes, it disables
 new recording before analyzing and exporting the completed events.
 
-The process-wide ownership is deliberate. A report needs one index space and one unambiguous set of
-output paths. Nested spans are ordinary events, but a second overlapping `profile` session is
-rejected rather than allowed to compete for the same buffer.
+The session owns the process-wide buffer and output paths. Calls to `span` can nest inside it.
+An overlapping `profile` call raises an error.
 
 If profiling is disabled, `profileFromEnvironment` still runs the action and `span` does not retain
 an event. This keeps instrumentation in normal application code instead of requiring a separate
@@ -84,10 +79,9 @@ The index is reserved before the action because completion order is not executio
 child may finish before its parent, and two worker threads may finish in either order. Export sorts
 events by their reservation indices, while every event also keeps its actual start and stop times.
 
-Each Lean thread has its own nesting stack. This prevents concurrent work from becoming accidental
-siblings or children merely because another thread happened to open a span first. When a caller
-spawns a worker, it can explicitly pass the current parent index to that worker; the trace then
-keeps the causal link without pretending that the two threads share one clock.
+Each Lean thread has its own nesting stack. A newly opened span inherits the active parent on
+that thread. A caller can pass its parent index to a worker to record a cross-thread dependency.
+All timestamps use the process monotonic clock.
 
 # The timed interval has a precise boundary
 %%%
@@ -98,26 +92,23 @@ Once reservation is complete, the profiler samples `IO.monoNanosNow` and
 `IO.getNumHeartbeats`, runs the action, and samples both again. The resulting event stores elapsed
 monotonic host time and the difference in Lean heartbeats.
 
-These measurements answer different questions. Host time includes waiting, scheduling, operating
-system work, and synchronous foreign calls. Lean heartbeats are a runtime work counter associated
-with the current Lean thread. They are not CPU cycles, allocation bytes, or a device timer. A phase
-whose host time rises while its heartbeat count stays nearly fixed is often waiting or doing work
-outside ordinary Lean execution; a phase whose two measurements rise together is more likely doing
-additional Lean-side work.
+Host time includes waiting, scheduling, and synchronous foreign calls. Lean heartbeats count
+runtime work on the current Lean thread, mainly through small allocations. Comparing the two can
+help locate a slowdown. An increase in host time with few additional heartbeats suggests waiting
+or foreign work, while an increase in both suggests more Lean work. Either pattern needs further
+measurement to identify its cause.
 
-The action is protected by `try`/`finally`. Its event is completed and the thread stack is restored
-even when it throws. The original exception then continues to the caller. This matters in practice:
-a partial trace from a failed run is often the clearest record of where the failure occurred.
+A `finally` block completes the event and restores the thread stack when the action throws.
+The caller receives the original exception, and the session attempts to export the completed
+spans.
 
 # Hooks define when asynchronous work is finished
 %%%
 tag := "span-hook-boundary"
 %%%
 
-A host call can return before a GPU, accelerator, or foreign task has completed. Stopping the clock
-at that return would measure submission latency rather than completed work. `SpanHooks` lets an
-adapter define the boundary without putting CUDA, PyTorch, or another runtime into the core
-package:
+A GPU launch can return while its work is still running. An adapter can use `SpanHooks` to wait
+for completion before LeanProfiler takes the stop timestamp.
 
 ```
 prepare
@@ -133,9 +124,7 @@ runtime before the stop sample. `enrich` runs outside the measured interval and 
 or device counters. The metadata should name the timing convention because a synchronized device
 span and an unsynchronized host-launch span answer different questions.
 
-The hook does not expose the kernels or operators inside a foreign call. It gives the outer Lean
-application an honest completion boundary. PyTorch Profiler, Nsight, Perfetto, or another
-runtime-specific tool remains the right instrument when the question lies below that boundary.
+Use a device profiler such as Nsight for the kernel activity inside that interval.
 
 # Analysis computes inclusive and self time
 %%%
@@ -147,19 +136,17 @@ structure. It checks duplicate indices, missing parents, impossible depths, reve
 child intervals that extend outside their parents. Validation issues remain in the report instead
 of being silently repaired into benchmark data.
 
-For an event with interval `I`, inclusive time is simply the length of `I`. Self time removes
-the portion covered by its immediate children on the same thread:
+Inclusive time is the length of the event interval. Self time subtracts the portion covered
+by its immediate children on the same thread.
 
 $$`t_{\mathrm{self}}(e)
   = |I_e| - \left|\bigcup_{c \in C_e} (I_c \cap I_e)\right|`
 
-The union is important. If malformed or overlapping child intervals cover the same nanoseconds,
-those nanoseconds are subtracted once, not once per child. Intervals are clipped to the parent, and
-subtraction is bounded so a diagnostic report cannot contain self time larger than inclusive time.
+The union counts overlapping child intervals once. The analyzer clips them to the parent's
+interval and bounds the subtraction, including when a malformed capture is being inspected.
 
-Cross-thread children are not subtracted. Two threads may run simultaneously, so removing a worker
-thread's elapsed interval from its caller would confuse a causal relationship with exclusive time
-on one clock. The parent link remains available in the trace for correlation.
+Cross-thread children retain their parent links. Their intervals can overlap the caller's work,
+so the analyzer leaves the caller's self time intact.
 
 Heartbeats follow the same parent rule when a same-thread child lies completely inside its parent.
 The analysis layer proves that every emitted timing has self time no greater than inclusive time,
@@ -182,27 +169,16 @@ a thousand unrelated rows. Each group records call count, total inclusive and se
 minimum, mean, median, nearest-rank p95, maximum, heartbeat totals, and any memory counters supplied
 by an adapter.
 
-This produces two complementary artifacts. The Trace Event file preserves temporal order and opens
-in Perfetto. The strict summary JSON preserves grouped measurements and validation state for scripts,
-CI, and baseline comparisons. The trace helps explain a run; the summary makes a repeated change
-measurable.
+The Trace Event file preserves the timeline for Perfetto. The summary JSON stores grouped
+measurements and validation results for scripts and comparisons.
 
 # What LeanProfiler does not infer
 %%%
 tag := "profiler-limits"
 %%%
 
-LeanProfiler does not sample the native call stack, discover every function, intercept allocations,
-or recognize model operators automatically. Those jobs require compiler instrumentation, operating
-system sampling, or runtime-specific support. Instead, LeanProfiler records application boundaries
-chosen by the Lean program and gives adapters a typed place to add measurements they can justify.
+The program supplies span boundaries and metadata. Allocator and device measurements require an
+adapter, while stack samples and automatic operator discovery require other instrumentation.
 
-This choice is useful when a program crosses several systems. A span can retain the name
-`training.step` or `solver.expand` while a lower-level profiler explains what happened inside one
-particular call. It also means that span placement is part of the experiment: begin with broad
-phases, inspect the first trace, and add detail only where the next question requires it.
-
-Enabled profiling has real overhead: mutex access, clock and heartbeat samples, event storage, and
-eventual analysis. It is designed for selected runtime phases rather than tracing every arithmetic
-operation. Scheduled captures, stable span names, and a finite event limit keep that cost visible
-and controlled.
+Recording a span costs mutex access, clock and heartbeat samples, and event storage. Analysis runs
+after the session. Use selected phases and short scheduled captures to keep these costs manageable.

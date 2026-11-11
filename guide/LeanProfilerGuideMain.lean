@@ -15,9 +15,12 @@ private def guideStyles : Html :=
   {{ <link rel="stylesheet" href="Assets/guide.css"/> }}
 
 private def guideConfig : RenderConfig where
+  htmlDepth := 1
   -- Verso copies the checked-in captures and Lean-generated figures beside the rendered pages.
   extraFiles := [("LeanProfilerGuide/Assets", "Assets")]
   extraHead := #[guideStyles]
+  sourceLink := some "https://github.com/lean-dojo/LeanProfiler"
+  issueLink := some "https://github.com/lean-dojo/LeanProfiler/issues"
 
 -- Standalone page titles lack the anchors used by Verso's TOC and permalinks.
 -- Use the traversal's page locations, not guessed targets from incoming links.

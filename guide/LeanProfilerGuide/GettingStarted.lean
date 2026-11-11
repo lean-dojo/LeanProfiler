@@ -8,17 +8,16 @@ import VersoManual
 import LeanProfiler
 
 open Verso.Genre Manual
+open Verso.Genre.Manual.InlineLean
 
 #doc (Manual) "Record your first run" =>
 %%%
 tag := "getting-started"
 %%%
 
-Start with the few boundaries you would name while explaining the program to another person. A file
-indexer may have discovery, parsing, and writing phases. A server request may have parsing, lookup,
-computation, and serialization. A training step may have loading, forward evaluation, backward
-evaluation, and an optimizer update. A handful of broad spans is easier to read than hundreds of
-tiny events, and it usually makes the next question obvious.
+Start by naming the phases you want to measure. For a training step, these might be data loading,
+forward evaluation, backward evaluation, and the optimizer update. Record those phases first, then
+add detail where the trace shows an expensive call.
 
 Add LeanProfiler to the Lake package that owns the executable:
 
@@ -29,19 +28,20 @@ git = "https://github.com/lean-dojo/LeanProfiler"
 rev = "main"
 ```
 
-Import the package and put one session around the run. Spans can then name the phases inside it:
+Add `import LeanProfiler` to the file and put one session around the run. Name its phases with spans.
 
-```
-import LeanProfiler
-
+```lean -keep
 open LeanProfiler
 
+/-- Simulate a file read for this timing example. -/
 def readSource : IO Unit :=
   IO.sleep 2
 
+/-- Simulate analysis as a separate measured phase. -/
 def analyzeSource : IO Unit :=
   IO.sleep 4
 
+/-- Record both phases in one profiling session. -/
 def main : IO Unit :=
   profileFromEnvironment "indexer.run" do
     span "source.read" readSource
@@ -65,14 +65,12 @@ build/leanprofiler-trace.json
 build/leanprofiler-summary.json
 ```
 
-The trace records every completed span in Trace Event format. Open it in
-[Perfetto](https://ui.perfetto.dev) to zoom through the run and inspect metadata. The summary groups
-repeated spans and keeps integer-nanosecond measurements, Lean heartbeats, validation issues, and
-session resource counters.
+Open the trace in [Perfetto](https://ui.perfetto.dev) to inspect the spans and their metadata.
+The summary groups repeated spans and records their durations in integer nanoseconds, together
+with Lean heartbeats, validation issues, and process resource counters.
 
-Without `LEAN_PROFILE=1`, `profileFromEnvironment` still runs the action. It does not retain spans
-or write reports. Instrumentation can therefore remain in normal application code. Enabled spans
-still have measurement overhead, so capture only the interval and detail needed for the question.
+`profileFromEnvironment` runs the action in either mode. Setting `LEAN_PROFILE=1` enables event
+recording and report export. Leave the spans in application code and enable them for captures.
 
 The session above produces a root event with two children:
 
@@ -82,9 +80,7 @@ indexer.run
 └── source.analyze
 ```
 
-That small hierarchy already distinguishes slow file access from slow analysis. A server, theorem
-search, simulator, or training loop would use names from its own domain. Nest narrower spans only
-after the first trace points to one of them.
+The two child spans separate the time spent in each phase.
 
 # Use an explicit configuration
 %%%
@@ -94,8 +90,12 @@ tag := "explicit-configuration"
 Environment variables are convenient for commands and CI. A library or long-running application
 can pass the same settings directly:
 
-```
-def runProfiled (config : ProfilerConfig) : IO Unit :=
+```lean -keep
+open LeanProfiler
+
+/-- Record one supplied action with explicit settings. -/
+def runProfiled (config : ProfilerConfig)
+    (runWork : IO Unit) : IO Unit :=
   profile config "worker" do
     span "work" runWork
 ```
@@ -161,7 +161,8 @@ lake exe your_executable
 tag := "checked-in-example"
 %%%
 
-Run the checked-in version of this experiment from the repository root:
+The repository's nested example simulates three source files with timed delays. Run it from the
+repository root:
 
 ```
 LEAN_PROFILE=1 lake exe leanprofiler_nested_example
@@ -175,30 +176,29 @@ example.source-indexer
 └── source.analyze
 ```
 
-The read span records its phase and filesystem activity. The analysis span records its phase and
-component name. Step numbers remain on individual trace events, while the three repeated calls
-share one summary row. The timeline preserves each observation; the summary provides the
-distribution used for comparisons.
+The read and analysis spans sleep for two and four milliseconds respectively. They carry phase,
+activity, and module labels to demonstrate grouping. Each event retains its step number, and the
+three calls to each phase share one summary row.
 
-The other examples cover two boundaries that are easy to miss:
+Two further examples cover asynchronous completion and scheduled captures.
 
 ```
 LEAN_PROFILE=1 lake exe leanprofiler_async_example
 LEAN_PROFILE=1 lake exe leanprofiler_schedule_example
 ```
 
-`AsyncCompletion` waits for a task through a completion hook before taking the stop timestamp.
-`ScheduledSteps` runs skipped and warmup work before opening the recorded interval. Reach for these
-examples after a first capture points to asynchronous completion or startup effects.
+`AsyncCompletion` waits for a task before taking the stop timestamp. `ScheduledSteps` runs skipped
+and warmup steps before opening the recorded interval.
 
-# Time work, not a lazy value
+# Place work inside the timed action
 %%%
 tag := "io-timing-boundary"
 %%%
 
-`span` accepts an `IO` action. That boundary matters because a pure value can remain partly
-unevaluated until a later action prints, stores, or passes it to foreign code. Put the span around
-the action that actually forces the work.
+`span` starts timing when it runs the supplied `IO` action. Lean evaluates ordinary arguments
+before calling a function, so a pure computation used to construct that action may finish before
+timing starts. Put the computation inside the action, and consume its result so the compiler
+retains the work you intend to measure.
 
 The optional `profiled def` syntax keeps a small `IO` function concise. It has its own import
 because defining a command requires Lean's compiler front end:

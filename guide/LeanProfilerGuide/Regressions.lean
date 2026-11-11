@@ -9,17 +9,17 @@ import LeanProfiler
 import LeanProfiler.Proofs
 
 open Verso.Genre Manual
+open Verso.Genre.Manual.InlineLean
 
 #doc (Manual) "Compare two runs" =>
 %%%
 tag := "regressions"
 %%%
 
-Now change exactly one part of the running example. The baseline spends about four milliseconds in
-each `source.analyze` span; the candidate spends ten. Both captures retain three files and keep the
-two-millisecond read delay unchanged.
+The regression example increases the requested `source.analyze` delay from four milliseconds
+to ten. Both runs keep three steps and the two-millisecond read delay.
 
-Generate both captures and their comparison:
+Generate the captures and compare them.
 
 ```
 lake exe leanprofiler_regression_example
@@ -38,25 +38,23 @@ lake exe leanprofiler compare \
   --json build/regression-walkthrough/comparison.json
 ```
 
-The candidate crosses both allowances for `source.analyze` and for the enclosing root span. The
-read row stays effectively unchanged, which is the evidence that localizes the regression:
+In the saved comparison, `source.analyze` and the root span exceed both tolerances. The read row
+stays within tolerance.
 
-![A paired-dot plot comparing baseline and candidate p95 values for the three nested example rows](../../Assets/p95-comparison.svg)
+[![A paired-dot plot comparing baseline and candidate p95 values for the three nested example rows](Assets/p95-comparison.svg)](Assets/p95-comparison.svg)
 
-The root regression is a consequence of the forward regression; it is not a second independent
-cause. The checked-in inputs behind the figure are available as
-[baseline summary](../../Assets/nested-spans-summary.json),
-[candidate summary](../../Assets/comparison-candidate-summary.json), and
-[comparison JSON](../../Assets/comparison.json).
+The additional analysis time also increases the root duration. The figure uses the saved
+[baseline summary](Assets/nested-spans-summary.json),
+[candidate summary](Assets/comparison-candidate-summary.json), and
+[comparison JSON](Assets/comparison.json).
 
 # Schedule a capture
 %%%
 tag := "capture-schedule"
 %%%
 
-Long loops rarely need a trace of every step. Startup and compilation can also dominate the first
-iterations. `Schedule.create` classifies zero-based steps into skip, warmup, record, and
-record-and-save phases:
+Use a schedule to record selected steps after startup and warmup. `Schedule.create` classifies
+zero-based steps as skip, warmup, record, or record-and-save.
 
 ```
 let .ok schedule := Schedule.create
@@ -70,7 +68,7 @@ let .ok schedule := Schedule.create
 
 The example schedule creates two short active captures inside one longer run:
 
-![Two repeated capture cycles with skipped, warmup, recorded, and save steps](../../Assets/capture-schedule.svg)
+[![Two repeated capture cycles with skipped, warmup, recorded, and save steps](Assets/capture-schedule.svg)](Assets/capture-schedule.svg)
 
 After the initial skip, each cycle is:
 
@@ -101,16 +99,17 @@ let ran ← runScheduledCycle schedule cycle config captureName fun step action 
   runStep step action
 ```
 
-Skipped, waiting, and warmup callbacks run before capture begins. They can still change application
-state, so the active interval begins from the same state the unprofiled loop would have reached.
-Give every retained cycle its own trace and summary paths.
+Skipped, waiting, and warmup callbacks run before capture begins and can update application
+state. Give each recorded cycle its own trace and summary paths.
 
 The schedule lemmas establish its boundary behavior:
 
-```
-#check LeanProfiler.Schedule.cycleLength_pos
-#check LeanProfiler.Schedule.actionAt_eq_skip_of_lt_skipFirst
-#check LeanProfiler.ProfilerAction.records_of_saves
+```lean
+open LeanProfiler
+
+#check Schedule.cycleLength_pos
+#check Schedule.actionAt_eq_skip_of_lt_skipFirst
+#check ProfilerAction.records_of_saves
 ```
 
 # Pick the metric that matches the question
@@ -128,11 +127,9 @@ total_heartbeats     self_heartbeats
 alloc_bytes          peak_live_bytes
 ```
 
-Use mean, median, or p95 for per-call latency when the call count still represents the same
-workload. Use total or self time when the amount of recorded work is itself the target.
-
-Heartbeat metrics focus on Lean-managed work. Allocation metrics are meaningful only when both
-captures use hooks with the same allocator semantics.
+Use mean, median, or p95 for call latency, and total or self time for aggregate cost. Check call
+counts when comparing either. For memory comparisons, confirm both runs measured the same
+allocator counters. Missing counters contribute zero to grouped rows.
 
 # Set both tolerances
 %%%
@@ -152,10 +149,9 @@ let config : ComparisonConfig := {
 }
 ```
 
-For a nanosecond metric, this allows 0.5 milliseconds and 10%. An increase is a regression only
-when it is strictly greater than both. This keeps a high percentage on a tiny span below the
-absolute noise floor, while a small absolute change on a long span stays below the relative
-allowance.
+For a nanosecond metric, these allowances are 0.5 milliseconds and 10%. An increase is a regression
+when it exceeds both. The absolute tolerance handles small noisy spans, and the relative tolerance
+scales with the baseline.
 
 When the baseline is zero, only the absolute allowance can be evaluated.
 
@@ -167,9 +163,8 @@ tag := "comparison-keys"
 Comparisons match name, phase, activity, backend, dtype, device, and module. A row found only in the
 baseline is `missing`; one found only in the candidate is `new`.
 
-Those categories are reported without failing by default because instrumentation can change
-deliberately. Use `--fail-on-new` or `--fail-on-missing` when the key set is part of the benchmark
-contract.
+Use `--fail-on-new` or `--fail-on-missing` to require a stable set of keys. Otherwise the
+comparison reports those rows and evaluates the matched rows.
 
 The result stores the baseline and candidate values, signed delta, basis-point change, call counts,
 and one of:
@@ -178,7 +173,7 @@ and one of:
 - `within_tolerance`;
 - `regression`.
 
-# Treat summaries as inputs, not loose JSON
+# Validate comparison inputs
 %%%
 tag := "strict-summary-input"
 %%%
@@ -208,8 +203,8 @@ deliberate diagnosis and is recorded in the comparison JSON.
 tag := "repeatable-measurement"
 %%%
 
-A p95 inside one report describes calls in that process. It is not a confidence interval over
-independent runs. For a change that matters:
+A report's p95 summarizes calls within one process. Compare several process runs under the
+following conditions.
 
 1. pin the Lean toolchain and Lake manifests;
 2. use the same build settings and machine;
@@ -219,5 +214,5 @@ independent runs. For a change that matters:
 6. inspect the distribution before setting a tolerance;
 7. retain traces and summaries for failed comparisons.
 
-Never share a baseline between an unsynchronized GPU launch span and a synchronized completion
-span. They measure different intervals.
+Use the same completion policy in both captures. Synchronizing a GPU changes which work falls
+inside the measured interval.

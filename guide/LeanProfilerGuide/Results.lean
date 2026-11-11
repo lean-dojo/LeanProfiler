@@ -9,27 +9,24 @@ import LeanProfiler
 import LeanProfiler.Proofs
 
 open Verso.Genre Manual
+open Verso.Genre.Manual.InlineLean
 
 #doc (Manual) "Read the trace and summary" =>
 %%%
 tag := "results"
 %%%
 
-The nested example recorded seven events on one Lean thread. Its trace preserves the order of the
-run: each source read is followed by one analysis pass, all under one root event. This timeline is
-generated from the checked-in Trace Event file:
+The nested example records three read/analysis pairs under one root span, giving seven events
+on one Lean thread. The phases use sleeps to make their timing easy to inspect.
 
-![A nested timeline with one root span and alternating source.read and source.analyze child spans](../../Assets/nested-spans-timeline.svg)
+[![A nested timeline with one root span and alternating source.read and source.analyze child spans](Assets/nested-spans-timeline.svg)](Assets/nested-spans-timeline.svg)
 
-The capture came from one real run on Linux with Lean 4.32.0. Its names, nesting, and metadata come
-from the program. Its durations are observations, not reference performance.
+This saved capture was recorded on Linux with Lean 4.32.0. Open
+[the trace](Assets/nested-spans-trace.json) in [Perfetto](https://ui.perfetto.dev) to inspect
+its event arguments. The [capture record](Assets/capture-provenance.json) gives the workload
+and toolchain.
 
-Download
-[the same trace](../../Assets/nested-spans-trace.json) and open it in
-[Perfetto](https://ui.perfetto.dev) to inspect event arguments and zoom the timeline.
-
-The summary collapses the repeated calls into three rows. The same run printed this table before
-writing its two files:
+The summary groups those events into three rows. The saved run printed the following table.
 
 ```
 Lean profile: 7 events, 1 threads, window 18.55 ms,
@@ -49,11 +46,10 @@ The analysis calls account for about two thirds of recorded thread time and the 
 about one third. The enclosing root spans the full run, but almost all of that interval belongs to
 its children:
 
-![Inclusive and self time for the three grouped rows in the nested example](../../Assets/time-breakdown.svg)
+[![Inclusive and self time for the three grouped rows in the nested example](Assets/time-breakdown.svg)](Assets/time-breakdown.svg)
 
-The root is slow because its children are slow, not because of work performed directly in the root.
-Exact durations move between machines and runs. Event names, grouping fields, call counts, and the
-relationship between self and total time should remain stable for an unchanged workload.
+The root's children account for almost all of its duration. Use their rows to investigate the
+time spent inside it.
 
 # Total and self time
 %%%
@@ -79,14 +75,16 @@ children is enough. Cross-thread logical children remain linked but are not subt
 
 LeanProfiler proves the inclusive bounds used by this calculation:
 
-```
-#check LeanProfiler.EventTiming.selfNs_le_inclusiveNs
-#check LeanProfiler.EventTiming.selfHeartbeats_le_inclusiveHeartbeats
-#check LeanProfiler.analyze_timings_areConsistent
+```lean
+open LeanProfiler
+
+#check EventTiming.selfNs_le_inclusiveNs
+#check EventTiming.selfHeartbeats_le_inclusiveHeartbeats
+#check analyze_timings_areConsistent
 ```
 
-These theorems describe the analyzer. They do not prove that the clock has a particular physical
-resolution or that the profiled action implements its intended algorithm.
+These bounds hold for the analyzer's interval arithmetic. Clock accuracy and the measured
+program's correctness require separate evidence.
 
 # Capture totals
 %%%
@@ -95,8 +93,8 @@ tag := "capture-totals"
 
 `trace_window_ns` runs from the earliest retained start to the latest retained end.
 
-`recorded_thread_time_ns` is the sum of every event's self time. Parallel threads can make this
-larger than the trace window. It is not CPU utilization.
+`recorded_thread_time_ns` sums the events' self time. It can exceed the trace window when spans
+run concurrently on several threads.
 
 `recorded_heartbeats` is the matching sum of self heartbeats. Each row's `share_permille` is:
 
@@ -125,8 +123,9 @@ For each key, the summary stores:
 - total and self heartbeats;
 - supplied allocation totals and peak live bytes.
 
-Total time can double-count nested work. Rank by self time when asking where recorded host time
-went. Use total time when asking how long callers waited for a named region.
+Sort by self time to locate recorded work. Total time includes nested calls and measures how
+long each named region took. Allocation fields default to zero in grouped rows, so check the
+trace metadata and adapter before interpreting a zero as measured memory usage.
 
 The saved summary contains this real row:
 
@@ -150,10 +149,10 @@ The saved summary contains this real row:
 }
 ```
 
-The three analysis calls lasted about four milliseconds each because this example sleeps for four
-milliseconds. Scheduler and timer behavior account for the extra time.
+Each analysis call requests a four-millisecond sleep. Scheduler and timer behavior affect the
+observed duration.
 
-The [complete summary](../../Assets/nested-spans-summary.json) includes all required version-1
+The [complete summary](Assets/nested-spans-summary.json) includes all required version-1
 fields.
 
 # Heartbeats
@@ -165,8 +164,8 @@ Lean heartbeats count work mainly through small allocations on the current execu
 extra weight for selected allocation-avoiding paths. They are useful beside elapsed time when
 managed Lean work stays similar but wall-clock noise moves.
 
-Heartbeats are not instructions, cycles, bytes, or device work. A foreign call can take a long time
-while adding few Lean heartbeats. Each Lean thread has its own counter.
+A long foreign call may add few Lean heartbeats. Each Lean thread has its own counter, and its
+value measures runtime work rather than instruction count or device activity.
 
 # Process counters
 %%%
@@ -181,9 +180,9 @@ changes in:
 - block input and output operations;
 - voluntary and involuntary context switches.
 
-It also reports ending peak resident set size and any increase during the capture. Peak RSS is a
-high-water mark, not current live memory. These counters cover the whole process, including
-unprofiled threads and foreign code, so they do not belong to an individual row.
+It also reports peak resident set size at the end of the session and any increase during it.
+These process-wide counters include other threads and foreign code. Peak RSS can reflect work
+performed before the session.
 
 # Structural validation
 %%%
@@ -199,9 +198,9 @@ tag := "structural-validation"
 - same-thread children outside their parent interval;
 - overlapping immediate siblings on one thread.
 
-Analysis continues after a problem so the trace remains inspectable. A report with issues is
-diagnostic data. The strict summary reader rejects missing fields, unknown fields, non-integer
-nanoseconds, duplicate keys, inconsistent totals, and malformed retained-index prefixes.
+Analysis records these issues alongside the timing data. The summary reader also checks field
+names, integer nanoseconds, unique keys, totals, and retained-index prefixes. The comparison
+command requires a valid, complete capture by default.
 
 # Trace Event units
 %%%
