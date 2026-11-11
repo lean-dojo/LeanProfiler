@@ -35,6 +35,8 @@ The recorded host duration includes outstanding queue time and the synchronizati
 TorchLean buffer handles, so shared storage can be counted more than once. They are not LibTorch
 allocator measurements: native temporaries, workspaces and reserved blocks need not have a
 TorchLean handle. `Buffer.Memory.read` also exposes native allocator counters.
+Its native allocator reads require a torch 2.13–2.15 runtime, as checked by TorchLean; a failure
+of the initial snapshot stops the action before timing begins.
 -/
 public def spanHooks : SpanHooks where
   State := Buffer.Memory

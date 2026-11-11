@@ -12,6 +12,9 @@ lake test
 lake lint
 ```
 
+The manifest pins TorchLean and inherits its FloatLib revision. Update them together with
+`lake update TorchLean`; this package has no independent FloatLib dependency.
+
 ## Use the core API
 
 Use `LeanProfiler` to name the actions in your training loop.
@@ -57,8 +60,8 @@ code to measure individual phases.
 
 ## Run on CUDA
 
-With a CUDA-enabled LibTorch SDK and an NVIDIA GPU, run the following commands from
-`integrations/TorchLean`.
+With a CUDA-enabled LibTorch SDK of torch 2.13–2.15 and an NVIDIA GPU, run the following commands
+from `integrations/TorchLean`.
 
 ```sh
 lake -R -K cuda=true build leanprofiler_torchlean
@@ -73,6 +76,12 @@ lake -R -K cuda=true exe leanprofiler_torchlean \
 
 Set `TORCHLEAN_LIBTORCH_HOME` or pass `-K libtorch_home=PATH` to select the SDK.
 A CUDA-enabled PyTorch installation can supply it.
+
+TorchLean's native operators use the LibTorch Stable ABI introduced in torch 2.13. The profiling
+hook also reads allocator statistics, whose interface TorchLean checks for torch 2.13–2.15.
+Another runtime release causes the hook's initial memory read to fail before the command runs.
+Retain the SDK version and loaded runtime version with a capture; `TorchLean.LibTorch.version`
+reports the latter.
 
 An explicit `--device cuda` or `--device gpu` selects `LeanProfiler.TorchLean.Cuda.spanHooks`.
 The hook samples the device-buffer counters, runs the command, synchronizes the selected device,

@@ -29,8 +29,9 @@ lake test
 lake lint
 ```
 
-The integration's manifest pins TorchLean. Retain that revision with a capture so later
-comparisons can identify the measured code.
+The integration's manifest pins TorchLean and inherits its FloatLib revision. It has no independent
+FloatLib dependency: `lake update TorchLean` refreshes both. Retain the resolved revisions with a
+capture so later comparisons can identify the measured code.
 
 # Import the core API
 %%%
@@ -200,7 +201,7 @@ counters cover the whole session across all threads.
 tag := "cuda-spans"
 %%%
 
-Build TorchLean with CUDA and run a device model:
+Use a CUDA-enabled LibTorch SDK of torch 2.13–2.15, build TorchLean with CUDA, and run a device model:
 
 ```
 LEAN_PROFILE=1 \
@@ -212,6 +213,11 @@ lake -R -K cuda=true exe leanprofiler_torchlean \
 
 The integration forwards `cuda=true` and the optional `libtorch_home` setting to TorchLean,
 which builds and links its LibTorch adapter.
+
+TorchLean's operators use the LibTorch Stable ABI introduced in torch 2.13. The hook also reads
+allocator statistics, whose interface TorchLean checks for torch 2.13–2.15. On another runtime
+release, the initial memory read fails before the model runs. Keep the SDK and loaded runtime
+versions with a capture; `TorchLean.LibTorch.version` reports the loaded runtime's version.
 
 When the command line contains `--device cuda` or `--device gpu`, the runner uses `Cuda.spanHooks`.
 The hook checks TorchLean's native runtime, samples its buffer counters, runs the model, calls

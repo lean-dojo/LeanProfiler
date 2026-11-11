@@ -110,8 +110,9 @@ lake test
 LEAN_PROFILE=1 lake exe leanprofiler_torchlean_mlp
 ```
 
-With a CUDA-enabled LibTorch SDK and an NVIDIA GPU, the command runner synchronizes the selected
-device before closing the span and records TorchLean's device-buffer counters.
+With a CUDA-enabled LibTorch SDK of torch 2.13–2.15 and an NVIDIA GPU, the command runner
+synchronizes the selected device before closing the span and records TorchLean's device-buffer
+counters.
 
 ```sh
 LEAN_PROFILE=1 \
