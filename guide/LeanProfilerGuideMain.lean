@@ -10,9 +10,8 @@ import LeanProfilerGuide.Manual
 open Verso Doc
 open Verso.Genre Manual
 
-open Verso Output Html in
-private def guideStyles : Html :=
-  {{ <link rel="stylesheet" href="Assets/guide.css"/> }}
+private def guideStyles : Lean.Html :=
+  .element "link" #[("rel", "stylesheet"), ("href", "Assets/guide.css")] .empty
 
 private def guideConfig : RenderConfig where
   htmlDepth := 1
@@ -32,8 +31,8 @@ private partial def addPageAnchors (directory : System.FilePath) (state : Traver
       let content ← IO.FS.readFile path
       let identifier := link.htmlId.toString
       if (content.splitOn s!"id=\"{identifier}\"").length == 1 then
-        let anchor := Output.Html.tag "span" #[("id", identifier)] .empty
-        let updated := content.replace "<main>" ("<main>" ++ anchor.asString)
+        let anchor := Lean.Html.element "span" #[("id", identifier)] .empty
+        let updated := content.replace "<main>" ("<main>" ++ Lean.Html.render anchor)
         if updated == content then
           throw <| IO.userError s!"{path}: missing main element for page anchor {identifier}"
         IO.FS.writeFile path updated
